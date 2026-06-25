@@ -1,0 +1,47 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: vivo-rateio-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: vivo_rateio
+      POSTGRES_USER: vivo_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-vivoRateio2024!}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./backend/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vivo_user -d vivo_rateio"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: vivo-rateio-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      DATABASE_URL: postgresql://vivo_user:${DB_PASSWORD:-vivoRateio2024!}@postgres:5432/vivo_rateio
+      JWT_SECRET: ${JWT_SECRET:-change-this-in-production-please}
+      UPLOAD_DIR: /app/uploads
+    ports:
+      - "3001:3001"
+    volumes:
+      - uploads:/app/uploads
+      - logs:/app/logs
+
+volumes:
+  pgdata:
+  uploads:
+  logs:

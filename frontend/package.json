@@ -1,0 +1,26 @@
+{
+  "name": "vivo-rateio-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.21.0",
+    "recharts": "^2.10.1",
+    "axios": "^1.6.2",
+    "react-dropzone": "^14.2.3",
+    "react-hot-toast": "^2.4.1",
+    "date-fns": "^3.0.6",
+    "lucide-react": "^0.300.0"
+  },
+  "devDependencies": {
+    "react-scripts": "5.0.1",
+    "@types/react": "^18.2.0"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test"
+  },
+  "proxy": "http://localhost:3001"
+}
