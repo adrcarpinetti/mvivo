@@ -690,32 +690,214 @@ const RechartsLib = (typeof Recharts !== 'undefined') ? Recharts : {};
 const { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } = RechartsLib;
 
 // ===== API CLIENT =====
-const API_BASE = '/api';
+// ===== CONFIGURAÇÃO DA API =====
+// Detecta se está rodando com backend real ou em modo demo (GitHub Pages)
+const API_BASE = (() => {
+  const configured = localStorage.getItem('api_base_url');
+  if (configured) return configured;
+  // Se estiver em github.io ou sem backend, usa modo demo
+  if (location.hostname.includes('github.io') || location.hostname === 'localhost') return '__DEMO__';
+  return '/api';
+})();
+
+const DEMO_MODE = API_BASE === '__DEMO__';
+
+// Dados de demonstração
+const DEMO_DATA = {
+  user: { id: '1', name: 'Adriano Carpinetti', email: 'admin@empresa.com.br', role_name: 'admin' },
+  dashboard: {
+    totalBilled: 48350.90, totalAllocated: 47980.20, totalLines: 127, linesWithoutCC: 3,
+    monthlyEvolution: [
+      { month: '2026-01-01', total: 43200 }, { month: '2026-02-01', total: 44800 },
+      { month: '2026-03-01', total: 45100 }, { month: '2026-04-01', total: 46300 },
+      { month: '2026-05-01', total: 47200 }, { month: '2026-06-01', total: 48350 },
+    ],
+    topCostCenters: [
+      { cost_center_code: '1001', cost_center_name: 'TI', total_amount: 12400, line_count: 32 },
+      { cost_center_code: '1002', cost_center_name: 'Comercial', total_amount: 9800, line_count: 28 },
+      { cost_center_code: '1003', cost_center_name: 'Operações', total_amount: 8700, line_count: 24 },
+      { cost_center_code: '1004', cost_center_name: 'Financeiro', total_amount: 6200, line_count: 18 },
+      { cost_center_code: '1005', cost_center_name: 'RH', total_amount: 4100, line_count: 12 },
+    ],
+    recentAccounts: [
+      { id: '1', account_number: '0454705224', reference_month: '2026-06-01', total_amount: 21450.30, status: 'reviewing' },
+      { id: '2', account_number: '0384017811', reference_month: '2026-06-01', total_amount: 26900.60, status: 'closed' },
+      { id: '3', account_number: '0454705224', reference_month: '2026-05-01', total_amount: 20800.10, status: 'closed' },
+    ],
+  },
+  accounts: [
+    { id: '1', account_number: '0454705224', reference_month: '2026-06-01', total_amount: 21450.30, status: 'reviewing' },
+    { id: '2', account_number: '0384017811', reference_month: '2026-06-01', total_amount: 26900.60, status: 'closed' },
+    { id: '3', account_number: '0454705224', reference_month: '2026-05-01', total_amount: 20800.10, status: 'closed' },
+    { id: '4', account_number: '0384017811', reference_month: '2026-05-01', total_amount: 26400.80, status: 'closed' },
+  ],
+  allocations: [
+    { id: '1', account_number: '0454705224', reference_month: '2026-06-01', total_amount: 21450.30,
+      total_allocated: 21200.00, difference: 250.30, status: 'reviewing' },
+    { id: '2', account_number: '0384017811', reference_month: '2026-06-01', total_amount: 26900.60,
+      total_allocated: 26900.60, difference: 0, status: 'closed' },
+  ],
+  allocationDetail: {
+    account_number: '0454705224', reference_month: '2026-06-01',
+    total_amount: 21450.30, total_allocated: 21200.00, difference: 250.30, status: 'reviewing',
+    items: [
+      { cost_center_code: '1001', cost_center_name: 'TI', line_count: 12, direct_amount: 5200, allocated_amount: 800, total_amount: 6000 },
+      { cost_center_code: '1002', cost_center_name: 'Comercial', line_count: 9, direct_amount: 3800, allocated_amount: 600, total_amount: 4400 },
+      { cost_center_code: '1003', cost_center_name: 'Operações', line_count: 8, direct_amount: 3500, allocated_amount: 500, total_amount: 4000 },
+      { cost_center_code: '1004', cost_center_name: 'Financeiro', line_count: 5, direct_amount: 2100, allocated_amount: 300, total_amount: 2400 },
+      { cost_center_code: '1005', cost_center_name: 'RH', line_count: 3, direct_amount: 1400, allocated_amount: 200, total_amount: 1600 },
+      { cost_center_code: 'SEM_CC', cost_center_name: 'Sem Centro de Custo', line_count: 3, direct_amount: 2800, allocated_amount: 0, total_amount: 2800 },
+    ]
+  },
+  reconciliation: {
+    totalVivo: 21450.30, totalAllocated: 21200.00, difference: 250.30,
+    linesWithoutCC: [
+      { number: '11987650001', amount: 89.90 },
+      { number: '11987650002', amount: 102.50 },
+      { number: '11987650003', amount: 57.90 },
+    ],
+    onlyInVivo: [{ number: '11999000001', amount: 45.00 }],
+    onlyInGOC: [{ number: '11988000001', employee: 'Maria Silva', costCenter: '1002' }],
+    lines: [
+      { number: '11989504196', employee: 'João Santos', costCenter: '1001 — TI', vivoAmount: 47.86, status: 'matched' },
+      { number: '11993601130', employee: 'Ana Costa', costCenter: '1002 — Comercial', vivoAmount: 61.25, status: 'matched' },
+      { number: '11987650001', employee: null, costCenter: null, vivoAmount: 89.90, status: 'no_cc' },
+    ]
+  },
+  costCenters: [
+    { id: '1', code: '1001', name: 'Tecnologia da Informação', active: true },
+    { id: '2', code: '1002', name: 'Comercial', active: true },
+    { id: '3', code: '1003', name: 'Operações', active: true },
+    { id: '4', code: '1004', name: 'Financeiro', active: true },
+    { id: '5', code: '1005', name: 'Recursos Humanos', active: true },
+    { id: '6', code: '1006', name: 'Jurídico', active: true },
+  ],
+  rules: [
+    { id: '1', name: 'Proporcional por Linhas', rule_type: 'proportional_lines', priority: 1,
+      active_from: '2026-01-01', active_until: null, description: 'Distribui o valor sem CC proporcionalmente ao nº de linhas por CC' },
+  ],
+  users: [
+    { id: '1', name: 'Adriano Carpinetti', email: 'admin@empresa.com.br', role_name: 'admin', last_login: new Date().toISOString(), active: true },
+    { id: '2', name: 'Analista Financeiro', email: 'analista@empresa.com.br', role_name: 'analyst', last_login: null, active: true },
+  ],
+  auditLogs: [
+    { id: 1, action: 'LOGIN', entity_type: 'user', user_name: 'Adriano Carpinetti', created_at: new Date().toISOString(), description: 'Login realizado com sucesso' },
+    { id: 2, action: 'IMPORT_VIVO', entity_type: 'vivo_account', user_name: 'Adriano Carpinetti', created_at: new Date(Date.now()-3600000).toISOString(), description: 'Importação: VIVO_0454705224_0626.ZIP — 47 linhas' },
+    { id: 3, action: 'PROCESS_ALLOCATION', entity_type: 'monthly_allocation', user_name: 'Adriano Carpinetti', created_at: new Date(Date.now()-7200000).toISOString(), description: 'Rateio processado: conta 0454705224 / Jun 2026' },
+    { id: 4, action: 'CLOSE_MONTH', entity_type: 'monthly_allocation', user_name: 'Analista Financeiro', created_at: new Date(Date.now()-86400000).toISOString(), description: 'Mês fechado: conta 0384017811 / Jun 2026' },
+  ],
+};
+
+// Simula atraso de rede no modo demo
+const demoDelay = (ms = 400) => new Promise(r => setTimeout(r, ms));
+
+// Roteador de respostas demo
+async function demoRequest(method, path, body) {
+  await demoDelay();
+  if (path === '/auth/login') {
+    const ok = (body.email === 'admin@empresa.com.br' && body.password === 'Admin@123') ||
+               (body.email === 'analista@empresa.com.br' && body.password === 'Admin@123');
+    if (!ok) throw new Error('E-mail ou senha incorretos');
+    const u = DEMO_DATA.users.find(u => u.email === body.email) || DEMO_DATA.user;
+    return { token: 'demo-token-' + Date.now(), user: u };
+  }
+  if (path === '/auth/me') return { user: DEMO_DATA.user };
+  if (path === '/reports/dashboard') return DEMO_DATA.dashboard;
+  if (path.startsWith('/allocations') && method === 'GET' && path === '/allocations') {
+    return { allocations: DEMO_DATA.allocations, accounts: DEMO_DATA.accounts };
+  }
+  if (path.match(/^\/allocations\/\w+\/reconciliation$/)) return DEMO_DATA.reconciliation;
+  if (path.match(/^\/allocations\/\w+$/) && method === 'GET') return { allocation: DEMO_DATA.allocationDetail, items: DEMO_DATA.allocationDetail.items };
+  if (path === '/allocations/process' && method === 'POST') {
+    await demoDelay(800);
+    const items = DEMO_DATA.allocationDetail.items;
+    return { simulate: body.simulate, totalAmount: 21450.30, totalAllocated: 21200.00, difference: 250.30, items,
+             unallocatedLines: DEMO_DATA.reconciliation.linesWithoutCC };
+  }
+  if (path === '/cost-centers' && method === 'GET') return { cost_centers: DEMO_DATA.costCenters };
+  if (path === '/cost-centers' && method === 'POST') {
+    const newCC = { id: String(Date.now()), ...body, active: true };
+    DEMO_DATA.costCenters.push(newCC);
+    return { cost_center: newCC };
+  }
+  if (path === '/rules' && method === 'GET') return { rules: DEMO_DATA.rules };
+  if (path === '/rules' && method === 'POST') {
+    const r = { id: String(Date.now()), ...body };
+    DEMO_DATA.rules.push(r);
+    return { rule: r };
+  }
+  if (path === '/users' && method === 'GET') return { users: DEMO_DATA.users };
+  if (path === '/users' && method === 'POST') {
+    const u = { id: String(Date.now()), ...body, active: true, last_login: null };
+    DEMO_DATA.users.push(u);
+    return { user: u };
+  }
+  if (path.match(/^\/users\/.+$/) && method === 'PUT') return { user: { ...body } };
+  if (path === '/audit' && method === 'GET') return { logs: DEMO_DATA.auditLogs };
+  if (path.includes('/reports/monthly-summary')) {
+    return { totalAmount: 48350.90, allocatedAmount: 47980.20, totalLines: 127,
+             costCenters: DEMO_DATA.dashboard.topCostCenters.map(cc => ({
+               code: cc.cost_center_code, name: cc.cost_center_name,
+               totalAmount: cc.total_amount, lineCount: cc.line_count,
+               directAmount: cc.total_amount * 0.8, allocatedAmount: cc.total_amount * 0.2 })) };
+  }
+  if (path.includes('/reports/cost-center/')) {
+    const code = path.split('/').pop();
+    const cc = DEMO_DATA.costCenters.find(c => c.code === code) || { code, name: 'Centro de Custo' };
+    return { costCenter: cc, history: [
+      { month: '2026-06-01', lineCount: 12, directAmount: 5200, allocatedAmount: 800, totalAmount: 6000 },
+      { month: '2026-05-01', lineCount: 11, directAmount: 4900, allocatedAmount: 750, totalAmount: 5650 },
+      { month: '2026-04-01', lineCount: 11, directAmount: 4800, allocatedAmount: 700, totalAmount: 5500 },
+    ]};
+  }
+  if (path.includes('/reports/line/')) {
+    return { lineNumber: path.split('/').pop(), history: [
+      { month: '2026-06-01', employee: 'João Santos', costCenter: '1001 — TI', amount: 89.90, planName: 'Plano Empresarial' },
+      { month: '2026-05-01', employee: 'João Santos', costCenter: '1001 — TI', amount: 85.50, planName: 'Plano Empresarial' },
+    ]};
+  }
+  if (path.includes('/reports/comparison')) {
+    return { month1Total: 47200, month2Total: 48350.90,
+             byCostCenter: DEMO_DATA.dashboard.topCostCenters.map(cc => ({
+               code: cc.cost_center_code, name: cc.cost_center_name,
+               month1: cc.total_amount * 0.97, month2: cc.total_amount })) };
+  }
+  if (path === '/imports/vivo' || path === '/imports/goc') {
+    await demoDelay(1200);
+    return { success: true, message: 'Modo demo — arquivo recebido (não processado no servidor)', warnings: ['Este é o modo demonstração. Conecte um backend para processar arquivos reais.'] };
+  }
+  return {};
+}
+
 let authToken = localStorage.getItem('auth_token');
 
 const api = {
   setToken(t) { authToken = t; localStorage.setItem('auth_token', t || ''); },
   getToken() { return authToken; },
   headers() {
-    return {
-      'Content-Type': 'application/json',
-      ...(authToken ? { Authorization: `Bearer ${authToken}` } : {})
-    };
+    return { 'Content-Type': 'application/json', ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}) };
   },
   async get(path) {
+    if (DEMO_MODE) return demoRequest('GET', path, null);
     const r = await fetch(API_BASE + path, { headers: this.headers() });
     if (r.status === 401) { api.setToken(null); window.location.reload(); }
     if (!r.ok) throw new Error((await r.json()).error || 'Erro');
     return r.json();
   },
   async post(path, body) {
-    const r = await fetch(API_BASE + path, {
-      method: 'POST', headers: this.headers(), body: JSON.stringify(body)
-    });
+    if (DEMO_MODE) return demoRequest('POST', path, body);
+    const r = await fetch(API_BASE + path, { method: 'POST', headers: this.headers(), body: JSON.stringify(body) });
+    if (!r.ok) throw new Error((await r.json()).error || 'Erro');
+    return r.json();
+  },
+  async put(path, body) {
+    if (DEMO_MODE) return demoRequest('PUT', path, body);
+    const r = await fetch(API_BASE + path, { method: 'PUT', headers: this.headers(), body: JSON.stringify(body) });
     if (!r.ok) throw new Error((await r.json()).error || 'Erro');
     return r.json();
   },
   async upload(path, formData) {
+    if (DEMO_MODE) return demoRequest('POST', path, {});
     const headers = authToken ? { Authorization: `Bearer ${authToken}` } : {};
     const r = await fetch(API_BASE + path, { method: 'POST', headers, body: formData });
     if (!r.ok) throw new Error((await r.json()).error || 'Erro no upload');
