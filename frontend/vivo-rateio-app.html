@@ -706,11 +706,11 @@ const DEMO_MODE = API_BASE === '__DEMO__';
 const DEMO_DATA = {
   user: { id: '1', name: 'Adriano Carpinetti', email: 'admin@empresa.com.br', role_name: 'admin' },
   dashboard: {
-    totalBilled: 48350.90, totalAllocated: 47980.20, totalLines: 127, linesWithoutCC: 3,
+    kpis: { total_invoice: 48350.90, total_allocated: 47980.20, total_lines: 127, lines_with_cc: 124, lines_without_cc: 3 },
     monthlyEvolution: [
-      { month: '2026-01-01', total: 43200 }, { month: '2026-02-01', total: 44800 },
-      { month: '2026-03-01', total: 45100 }, { month: '2026-04-01', total: 46300 },
-      { month: '2026-05-01', total: 47200 }, { month: '2026-06-01', total: 48350 },
+      { month: '2026-01-01', total_amount: 43200 }, { month: '2026-02-01', total_amount: 44800 },
+      { month: '2026-03-01', total_amount: 45100 }, { month: '2026-04-01', total_amount: 46300 },
+      { month: '2026-05-01', total_amount: 47200 }, { month: '2026-06-01', total_amount: 48350 },
     ],
     topCostCenters: [
       { cost_center_code: '1001', cost_center_name: 'TI', total_amount: 12400, line_count: 32 },
