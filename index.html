@@ -1,0 +1,2710 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Vivo Rateio — Controle de Contas Corporativas</title>
+<style>
+  /* ===== DESIGN SYSTEM ===== */
+  :root {
+    /* Paleta: Azul corporativo profundo + Magenta Vivo + Cinza técnico */
+    --brand-primary: #1a1f6e;      /* Azul índigo profundo */
+    --brand-secondary: #6e1a7e;    /* Roxo Vivo */
+    --accent: #c900a1;             /* Magenta Vivo */
+    --accent-light: #f5d6f0;
+    
+    --surface: #ffffff;
+    --surface-2: #f7f8fc;
+    --surface-3: #eef0f8;
+    --border: #dde1f0;
+    
+    --text-primary: #111827;
+    --text-secondary: #4b5563;
+    --text-muted: #9ca3af;
+    
+    --success: #059669;
+    --warning: #d97706;
+    --danger: #dc2626;
+    --info: #2563eb;
+    
+    --shadow-sm: 0 1px 3px rgba(26,31,110,0.08);
+    --shadow-md: 0 4px 12px rgba(26,31,110,0.12);
+    --shadow-lg: 0 8px 24px rgba(26,31,110,0.16);
+    
+    --radius: 8px;
+    --radius-lg: 12px;
+    
+    /* Typography */
+    --font-display: 'Inter', 'Segoe UI', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  
+  body {
+    font-family: var(--font-display);
+    background: var(--surface-2);
+    color: var(--text-primary);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  /* Layout */
+  .app { display: flex; min-height: 100vh; }
+
+  /* Sidebar */
+  .sidebar {
+    width: 240px;
+    background: var(--brand-primary);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    z-index: 100;
+    transition: transform 0.3s ease;
+  }
+  .sidebar-logo {
+    padding: 20px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+  }
+  .sidebar-logo h1 {
+    font-size: 18px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: -0.5px;
+  }
+  .sidebar-logo span {
+    font-size: 11px;
+    color: rgba(255,255,255,0.5);
+    display: block;
+    margin-top: 2px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+  .sidebar-logo .vivo-badge {
+    display: inline-block;
+    background: var(--accent);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 20px;
+    margin-top: 4px;
+    letter-spacing: 0.5px;
+  }
+
+  .sidebar-nav {
+    padding: 12px 0;
+    flex: 1;
+    overflow-y: auto;
+  }
+  .nav-section {
+    padding: 8px 16px 4px;
+    font-size: 10px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.35);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-top: 8px;
+  }
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 16px;
+    color: rgba(255,255,255,0.7);
+    cursor: pointer;
+    border-radius: 0;
+    transition: all 0.15s;
+    font-size: 13.5px;
+    font-weight: 500;
+    border-left: 3px solid transparent;
+    text-decoration: none;
+  }
+  .nav-item:hover {
+    background: rgba(255,255,255,0.08);
+    color: #fff;
+  }
+  .nav-item.active {
+    background: rgba(201,0,161,0.2);
+    color: #fff;
+    border-left-color: var(--accent);
+  }
+  .nav-item svg { width: 16px; height: 16px; opacity: 0.8; }
+  .nav-badge {
+    margin-left: auto;
+    background: var(--accent);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 10px;
+    min-width: 18px;
+    text-align: center;
+  }
+
+  .sidebar-footer {
+    padding: 12px 16px;
+    border-top: 1px solid rgba(255,255,255,0.1);
+  }
+  .user-pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: rgba(255,255,255,0.7);
+    font-size: 12px;
+  }
+  .user-avatar {
+    width: 28px; height: 28px;
+    background: var(--accent);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; color: #fff;
+    flex-shrink: 0;
+  }
+  .user-info small { color: rgba(255,255,255,0.4); font-size: 10px; }
+  .logout-btn {
+    margin-left: auto;
+    background: none; border: none; cursor: pointer;
+    color: rgba(255,255,255,0.4);
+    padding: 4px;
+    border-radius: 4px;
+    transition: color 0.15s;
+  }
+  .logout-btn:hover { color: #fff; }
+
+  /* Main content */
+  .main {
+    flex: 1;
+    margin-left: 240px;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+
+  .topbar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+  .topbar h2 {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+    flex: 1;
+  }
+  .topbar-actions { display: flex; align-items: center; gap: 8px; }
+
+  .page { padding: 24px; max-width: 1400px; }
+
+  /* Cards */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    box-shadow: var(--shadow-sm);
+  }
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .card-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  /* KPI Cards */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .kpi-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    box-shadow: var(--shadow-sm);
+  }
+  .kpi-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+  }
+  .kpi-value {
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+  }
+  .kpi-value.currency::before { content: 'R$ '; font-size: 14px; font-weight: 500; }
+  .kpi-sub {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 6px;
+  }
+  .kpi-trend {
+    font-size: 11px;
+    font-weight: 600;
+    margin-top: 4px;
+  }
+  .kpi-trend.up { color: var(--danger); }
+  .kpi-trend.down { color: var(--success); }
+  .kpi-card-accent { border-left: 4px solid var(--accent); }
+  .kpi-card-success { border-left: 4px solid var(--success); }
+  .kpi-card-warning { border-left: 4px solid var(--warning); }
+  .kpi-card-info { border-left: 4px solid var(--info); }
+
+  /* Grid layouts */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  .grid-auto { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+
+  /* Table */
+  .table-container {
+    overflow-x: auto;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  th {
+    background: var(--surface-2);
+    padding: 10px 14px;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-primary);
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--surface-2); }
+  .td-mono { font-family: var(--font-mono); font-size: 12px; }
+  .td-num { text-align: right; font-variant-numeric: tabular-nums; }
+
+  /* Badges */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .badge-success { background: #d1fae5; color: #065f46; }
+  .badge-danger  { background: #fee2e2; color: #991b1b; }
+  .badge-warning { background: #fef3c7; color: #92400e; }
+  .badge-info    { background: #dbeafe; color: #1e40af; }
+  .badge-purple  { background: #ede9fe; color: #5b21b6; }
+  .badge-gray    { background: #f3f4f6; color: #374151; }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border-radius: var(--radius);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: all 0.15s;
+    white-space: nowrap;
+    text-decoration: none;
+  }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-primary {
+    background: var(--brand-primary);
+    color: #fff;
+  }
+  .btn-primary:hover:not(:disabled) { background: #141964; }
+  .btn-accent {
+    background: var(--accent);
+    color: #fff;
+  }
+  .btn-accent:hover:not(:disabled) { background: #a8008a; }
+  .btn-outline {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+  }
+  .btn-outline:hover:not(:disabled) { background: var(--surface-2); }
+  .btn-success { background: var(--success); color: #fff; }
+  .btn-danger { background: var(--danger); color: #fff; }
+  .btn-sm { padding: 5px 10px; font-size: 12px; }
+  .btn-lg { padding: 11px 24px; font-size: 15px; }
+  .btn svg { width: 14px; height: 14px; }
+
+  /* Form elements */
+  .form-group { margin-bottom: 16px; }
+  .form-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  .form-control {
+    width: 100%;
+    padding: 9px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 13px;
+    font-family: inherit;
+    background: var(--surface);
+    color: var(--text-primary);
+    transition: border-color 0.15s, box-shadow 0.15s;
+    outline: none;
+  }
+  .form-control:focus {
+    border-color: var(--brand-primary);
+    box-shadow: 0 0 0 3px rgba(26,31,110,0.1);
+  }
+  select.form-control { cursor: pointer; }
+
+  /* Dropzone */
+  .dropzone {
+    border: 2px dashed var(--border);
+    border-radius: var(--radius-lg);
+    padding: 40px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--surface-2);
+  }
+  .dropzone:hover, .dropzone.active {
+    border-color: var(--accent);
+    background: var(--accent-light);
+  }
+  .dropzone-icon { font-size: 40px; margin-bottom: 12px; }
+  .dropzone h3 { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+  .dropzone p { font-size: 12px; color: var(--text-muted); }
+
+  /* Progress */
+  .progress-bar {
+    height: 6px;
+    background: var(--surface-3);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--brand-primary), var(--accent));
+    border-radius: 3px;
+    transition: width 0.3s;
+  }
+
+  /* Alert */
+  .alert {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 16px;
+    border-radius: var(--radius);
+    font-size: 13px;
+    margin-bottom: 16px;
+  }
+  .alert-danger  { background: #fee2e2; border: 1px solid #fecaca; color: #991b1b; }
+  .alert-warning { background: #fef3c7; border: 1px solid #fde68a; color: #92400e; }
+  .alert-success { background: #d1fae5; border: 1px solid #a7f3d0; color: #065f46; }
+  .alert-info    { background: #dbeafe; border: 1px solid #bfdbfe; color: #1e40af; }
+
+  /* Status indicator */
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 6px;
+  }
+  .status-dot.imported  { background: var(--info); }
+  .status-dot.reviewing { background: var(--warning); }
+  .status-dot.confirmed { background: #8b5cf6; }
+  .status-dot.closed    { background: var(--success); }
+  .status-dot.draft     { background: var(--text-muted); }
+
+  /* Reconciliation table */
+  .recon-row-vivo { background: #fff7ed; }
+  .recon-row-goc  { background: #eff6ff; }
+  .recon-row-both {}
+
+  /* Tabs */
+  .tabs { display: flex; gap: 0; border-bottom: 2px solid var(--border); margin-bottom: 20px; }
+  .tab-btn {
+    padding: 10px 20px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+    cursor: pointer;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: color 0.15s;
+  }
+  .tab-btn.active {
+    color: var(--brand-primary);
+    border-bottom-color: var(--brand-primary);
+  }
+  .tab-btn:hover { color: var(--text-primary); }
+
+  /* Modal */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 20px;
+  }
+  .modal {
+    background: var(--surface);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    max-width: 560px;
+    width: 100%;
+    box-shadow: var(--shadow-lg);
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  .modal-title { font-size: 16px; font-weight: 700; }
+  .modal-close {
+    background: none; border: none;
+    cursor: pointer; color: var(--text-muted);
+    padding: 4px; border-radius: 4px;
+    font-size: 18px; line-height: 1;
+  }
+  .modal-close:hover { color: var(--text-primary); }
+  .modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+
+  /* Empty state */
+  .empty-state {
+    text-align: center;
+    padding: 48px 24px;
+    color: var(--text-muted);
+  }
+  .empty-state svg { width: 48px; height: 48px; margin: 0 auto 16px; opacity: 0.3; }
+  .empty-state h3 { font-size: 15px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px; }
+  .empty-state p { font-size: 13px; }
+
+  /* Chart placeholder */
+  .chart-container { height: 240px; }
+
+  /* Login page */
+  .login-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-secondary) 100%);
+    padding: 24px;
+  }
+  .login-card {
+    background: var(--surface);
+    border-radius: 16px;
+    padding: 40px;
+    width: 100%;
+    max-width: 380px;
+    box-shadow: var(--shadow-lg);
+  }
+  .login-logo {
+    text-align: center;
+    margin-bottom: 32px;
+  }
+  .login-logo h1 { font-size: 22px; font-weight: 800; color: var(--brand-primary); }
+  .login-logo p { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+  .login-logo .accent { color: var(--accent); }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 4px; border-bottom: 2px solid var(--border); margin-bottom: 0; }
+  .tab-btn {
+    padding: 8px 16px; background: none; border: none;
+    border-bottom: 2px solid transparent; margin-bottom: -2px;
+    cursor: pointer; font-size: 13px; font-weight: 500;
+    color: var(--text-secondary); transition: all 0.15s;
+    border-radius: 6px 6px 0 0;
+  }
+  .tab-btn:hover { color: var(--brand-primary); background: var(--surface-3); }
+  .tab-btn.active { color: var(--brand-primary); border-bottom-color: var(--brand-primary); font-weight: 600; }
+
+  /* Form grid */
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .sidebar { transform: translateX(-240px); }
+    .sidebar.open { transform: translateX(0); }
+    .main { margin-left: 0; }
+    .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+    .grid-2, .grid-3, .form-grid { grid-template-columns: 1fr; }
+  }
+
+  /* Utility */
+  .flex { display: flex; align-items: center; }
+  .flex-between { display: flex; align-items: center; justify-content: space-between; }
+  .gap-8 { gap: 8px; }
+  .gap-12 { gap: 12px; }
+  .gap-16 { gap: 16px; }
+  .mt-4 { margin-top: 4px; }
+  .mt-8 { margin-top: 8px; }
+  .mt-16 { margin-top: 16px; }
+  .mt-24 { margin-top: 24px; }
+  .mb-16 { margin-bottom: 16px; }
+  .mb-24 { margin-bottom: 24px; }
+  .text-right { text-align: right; }
+  .text-center { text-align: center; }
+  .text-muted { color: var(--text-muted); font-size: 12px; }
+  .text-success { color: var(--success); }
+  .text-danger { color: var(--danger); }
+  .text-warning { color: var(--warning); }
+  .font-mono { font-family: var(--font-mono); font-size: 12px; }
+  .w-full { width: 100%; }
+  .separator { height: 1px; background: var(--border); margin: 16px 0; }
+  .loading-spinner {
+    width: 20px; height: 20px;
+    border: 2px solid var(--border);
+    border-top-color: var(--brand-primary);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spin { animation: spin 1s linear infinite; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
+
+  /* Number formatting */
+  .currency-value {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+  }
+
+  /* Allocation bar */
+  .alloc-bar-container { margin-top: 8px; }
+  .alloc-bar {
+    height: 8px;
+    border-radius: 4px;
+    background: var(--surface-3);
+    overflow: hidden;
+    margin-top: 4px;
+  }
+  .alloc-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--brand-primary), var(--accent));
+    border-radius: 4px;
+  }
+
+  /* Timeline for audit */
+  .timeline { position: relative; padding-left: 24px; }
+  .timeline::before {
+    content: '';
+    position: absolute;
+    left: 7px; top: 8px; bottom: 8px;
+    width: 2px;
+    background: var(--border);
+  }
+  .timeline-item { position: relative; margin-bottom: 16px; }
+  .timeline-dot {
+    position: absolute;
+    left: -21px; top: 4px;
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--brand-primary);
+    border: 2px solid var(--surface);
+    box-shadow: 0 0 0 2px var(--brand-primary);
+  }
+  .timeline-time { font-size: 11px; color: var(--text-muted); margin-bottom: 2px; }
+  .timeline-content { font-size: 13px; }
+
+  /* Toast-like notifications (inline) */
+  .inline-toast {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border-radius: var(--radius);
+    font-size: 13px;
+    font-weight: 500;
+    animation: slideIn 0.3s ease;
+  }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/recharts@2.10.1/umd/Recharts.js"></script>
+<script>
+const { useState, useEffect, useCallback, useRef, createContext, useContext } = React;
+const { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } = Recharts;
+
+// ===== API CLIENT =====
+const API_BASE = '/api';
+let authToken = localStorage.getItem('auth_token');
+
+const api = {
+  setToken(t) { authToken = t; localStorage.setItem('auth_token', t || ''); },
+  getToken() { return authToken; },
+  headers() {
+    return {
+      'Content-Type': 'application/json',
+      ...(authToken ? { Authorization: `Bearer ${authToken}` } : {})
+    };
+  },
+  async get(path) {
+    const r = await fetch(API_BASE + path, { headers: this.headers() });
+    if (r.status === 401) { api.setToken(null); window.location.reload(); }
+    if (!r.ok) throw new Error((await r.json()).error || 'Erro');
+    return r.json();
+  },
+  async post(path, body) {
+    const r = await fetch(API_BASE + path, {
+      method: 'POST', headers: this.headers(), body: JSON.stringify(body)
+    });
+    if (!r.ok) throw new Error((await r.json()).error || 'Erro');
+    return r.json();
+  },
+  async upload(path, formData) {
+    const headers = authToken ? { Authorization: `Bearer ${authToken}` } : {};
+    const r = await fetch(API_BASE + path, { method: 'POST', headers, body: formData });
+    if (!r.ok) throw new Error((await r.json()).error || 'Erro no upload');
+    return r.json();
+  },
+};
+
+// ===== AUTH CONTEXT =====
+const AuthCtx = createContext(null);
+function AuthProvider({ children }) {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    if (authToken) {
+      api.get('/auth/me').then(d => { setUser(d.user); setLoading(false); })
+        .catch(() => { api.setToken(null); setLoading(false); });
+    } else { setLoading(false); }
+  }, []);
+  const login = async (email, password) => {
+    const d = await api.post('/auth/login', { email, password });
+    api.setToken(d.token);
+    setUser(d.user);
+  };
+  const logout = () => { api.setToken(null); setUser(null); };
+  return React.createElement(AuthCtx.Provider, { value: { user, login, logout, loading } }, children);
+}
+const useAuth = () => useContext(AuthCtx);
+
+// ===== UTILITIES =====
+const fmt = {
+  currency(v) {
+    if (v == null || isNaN(v)) return 'R$ -';
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
+  },
+  number(v) { return new Intl.NumberFormat('pt-BR').format(v); },
+  pct(v) { return v != null ? `${Number(v).toFixed(1)}%` : '-'; },
+  month(s) {
+    if (!s) return '-';
+    const [y, m] = s.split('-');
+    const months = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    return `${months[parseInt(m)-1]}/${y}`;
+  },
+  date(s) {
+    if (!s) return '-';
+    const d = new Date(s);
+    return d.toLocaleDateString('pt-BR');
+  },
+  phone(s) {
+    if (!s) return '-';
+    const n = s.replace(/\D/g, '');
+    if (n.length === 11) return `(${n.slice(0,2)}) ${n.slice(2,7)}-${n.slice(7)}`;
+    if (n.length === 10) return `(${n.slice(0,2)}) ${n.slice(2,6)}-${n.slice(6)}`;
+    return s;
+  },
+};
+
+const STATUS_LABELS = {
+  imported: ['Importado','info'],
+  processing: ['Processando','warning'],
+  reviewing: ['Em Revisão','warning'],
+  confirmed: ['Confirmado','purple'],
+  closed: ['Fechado','success'],
+  draft: ['Rascunho','gray'],
+  simulated: ['Simulado','info'],
+};
+
+function StatusBadge({ status }) {
+  const [label, color] = STATUS_LABELS[status] || [status, 'gray'];
+  return React.createElement('span', { className: `badge badge-${color}` },
+    React.createElement('span', { className: `status-dot ${status}` }),
+    label
+  );
+}
+
+function Toast({ msg, type = 'success', onClose }) {
+  useEffect(() => { const t = setTimeout(onClose, 4000); return () => clearTimeout(t); }, [onClose]);
+  return React.createElement('div', {
+    style: {
+      position: 'fixed', top: 20, right: 20, zIndex: 9999,
+      background: type === 'error' ? '#dc2626' : type === 'warning' ? '#d97706' : '#059669',
+      color: '#fff', padding: '12px 18px', borderRadius: 8,
+      boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+      fontSize: 13, fontWeight: 600, maxWidth: 360,
+      animation: 'slideIn 0.3s ease',
+    }
+  }, msg);
+}
+
+function useToast() {
+  const [toast, setToast] = useState(null);
+  const show = useCallback((msg, type = 'success') => {
+    setToast({ msg, type, key: Date.now() });
+  }, []);
+  const ToastEl = toast ? React.createElement(Toast, { ...toast, onClose: () => setToast(null) }) : null;
+  return { show, ToastEl };
+}
+
+function Spinner() {
+  return React.createElement('div', { className: 'loading-spinner' });
+}
+
+// ===== PAGES =====
+
+// LOGIN
+function LoginPage() {
+  const [email, setEmail] = useState('admin@empresa.com.br');
+  const [password, setPassword] = useState('Admin@123');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const { login } = useAuth();
+
+  const handle = async (e) => {
+    e.preventDefault();
+    setLoading(true); setError('');
+    try { await login(email, password); }
+    catch(err) { setError(err.message); }
+    finally { setLoading(false); }
+  };
+
+  return React.createElement('div', { className: 'login-page' },
+    React.createElement('div', { className: 'login-card' },
+      React.createElement('div', { className: 'login-logo' },
+        React.createElement('h1', null, '📱 Vivo ', React.createElement('span', { className: 'accent' }, 'Rateio')),
+        React.createElement('p', null, 'Controle de Contas Corporativas')
+      ),
+      error && React.createElement('div', { className: 'alert alert-danger' }, error),
+      React.createElement('form', { onSubmit: handle },
+        React.createElement('div', { className: 'form-group' },
+          React.createElement('label', { className: 'form-label' }, 'E-mail'),
+          React.createElement('input', {
+            type: 'email', className: 'form-control', value: email,
+            onChange: e => setEmail(e.target.value), required: true,
+          })
+        ),
+        React.createElement('div', { className: 'form-group' },
+          React.createElement('label', { className: 'form-label' }, 'Senha'),
+          React.createElement('input', {
+            type: 'password', className: 'form-control', value: password,
+            onChange: e => setPassword(e.target.value), required: true,
+          })
+        ),
+        React.createElement('button', {
+          type: 'submit', className: 'btn btn-primary w-full btn-lg',
+          disabled: loading
+        }, loading ? React.createElement(Spinner) : 'Entrar')
+      ),
+      React.createElement('p', { style: { textAlign: 'center', marginTop: 16, fontSize: 11, color: 'var(--text-muted)' } },
+        'Conta demo: admin@empresa.com.br / Admin@123'
+      )
+    )
+  );
+}
+
+// DASHBOARD
+function DashboardPage() {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const year = new Date().getFullYear();
+
+  useEffect(() => {
+    api.get(`/reports/dashboard?year=${year}`)
+      .then(setData).catch(console.error).finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return React.createElement('div', { style: { padding: 40, textAlign: 'center' } }, React.createElement(Spinner));
+
+  const kpis = data?.kpis || {};
+  const monthly = data?.monthlyEvolution || [];
+  const topCC = data?.topCostCenters || [];
+
+  const COLORS = ['#1a1f6e','#c900a1','#6e1a7e','#2563eb','#059669','#d97706','#dc2626','#8b5cf6'];
+
+  return React.createElement('div', { className: 'page' },
+    // KPIs
+    React.createElement('div', { className: 'kpi-grid' },
+      React.createElement('div', { className: 'kpi-card kpi-card-accent' },
+        React.createElement('div', { className: 'kpi-label' }, 'Total Faturado (Mês)'),
+        React.createElement('div', { className: 'kpi-value currency-value' }, fmt.currency(kpis.total_invoice)),
+        React.createElement('div', { className: 'kpi-sub' }, 'Valor total da conta Vivo')
+      ),
+      React.createElement('div', { className: 'kpi-card kpi-card-success' },
+        React.createElement('div', { className: 'kpi-label' }, 'Total Rateado'),
+        React.createElement('div', { className: 'kpi-value currency-value' }, fmt.currency(kpis.total_allocated)),
+        React.createElement('div', { className: 'kpi-sub' }, 'Distribuído por CC')
+      ),
+      React.createElement('div', { className: 'kpi-card kpi-card-info' },
+        React.createElement('div', { className: 'kpi-label' }, 'Total de Linhas'),
+        React.createElement('div', { className: 'kpi-value' }, fmt.number(kpis.total_lines || 0)),
+        React.createElement('div', { className: 'kpi-sub' },
+          `${kpis.lines_with_cc || 0} com CC • ${kpis.lines_without_cc || 0} sem CC`
+        )
+      ),
+      React.createElement('div', { className: 'kpi-card kpi-card-warning' },
+        React.createElement('div', { className: 'kpi-label' }, 'Linhas sem CC'),
+        React.createElement('div', { className: 'kpi-value text-warning' }, fmt.number(kpis.lines_without_cc || 0)),
+        React.createElement('div', { className: 'kpi-sub' }, 'Requerem atenção')
+      ),
+    ),
+
+    // Charts row
+    React.createElement('div', { className: 'grid-2 mb-24' },
+      // Evolução mensal
+      React.createElement('div', { className: 'card' },
+        React.createElement('div', { className: 'card-header' },
+          React.createElement('div', { className: 'card-title' }, `Evolução Mensal ${year}`)
+        ),
+        monthly.length > 0
+          ? React.createElement(ResponsiveContainer, { width: '100%', height: 220 },
+              React.createElement(BarChart, { data: monthly, margin: { top: 4, right: 8, left: 0, bottom: 0 } },
+                React.createElement(CartesianGrid, { strokeDasharray: '3 3', stroke: '#eef0f8' }),
+                React.createElement(XAxis, { dataKey: 'month', tick: { fontSize: 11 }, tickFormatter: s => s.slice(5) }),
+                React.createElement(YAxis, { tick: { fontSize: 11 }, tickFormatter: v => `R$${(v/1000).toFixed(0)}k` }),
+                React.createElement(Tooltip, { formatter: (v) => [fmt.currency(v)] }),
+                React.createElement(Legend, { wrapperStyle: { fontSize: 11 } }),
+                React.createElement(Bar, { dataKey: 'invoice_total', name: 'Fatura', fill: '#1a1f6e', radius: [3,3,0,0] }),
+                React.createElement(Bar, { dataKey: 'allocated_total', name: 'Rateado', fill: '#c900a1', radius: [3,3,0,0] }),
+              )
+            )
+          : React.createElement('div', { className: 'empty-state' },
+              React.createElement('p', null, 'Nenhum dado disponível ainda')
+            )
+      ),
+
+      // Top CCs
+      React.createElement('div', { className: 'card' },
+        React.createElement('div', { className: 'card-header' },
+          React.createElement('div', { className: 'card-title' }, 'Top Centros de Custo')
+        ),
+        topCC.length > 0
+          ? React.createElement(ResponsiveContainer, { width: '100%', height: 220 },
+              React.createElement(PieChart, null,
+                React.createElement(Pie, {
+                  data: topCC.slice(0,8), cx: '45%', cy: '50%',
+                  outerRadius: 80, dataKey: 'total_amount',
+                  nameKey: 'code',
+                  label: ({ code, percent }) => `${code} ${(percent*100).toFixed(0)}%`,
+                  labelLine: false,
+                  fontSize: 10,
+                },
+                  ...topCC.slice(0,8).map((_, i) =>
+                    React.createElement(Cell, { key: i, fill: COLORS[i % COLORS.length] })
+                  )
+                ),
+                React.createElement(Tooltip, { formatter: v => [fmt.currency(v)] })
+              )
+            )
+          : React.createElement('div', { className: 'empty-state' },
+              React.createElement('p', null, 'Processe um rateio para ver os dados')
+            )
+      ),
+    ),
+
+    // Recent accounts table
+    React.createElement('div', { className: 'card' },
+      React.createElement('div', { className: 'card-header' },
+        React.createElement('div', { className: 'card-title' }, 'Contas Recentes'),
+      ),
+      React.createElement('div', { className: 'table-container' },
+        React.createElement('table', null,
+          React.createElement('thead', null,
+            React.createElement('tr', null,
+              ['Conta', 'Empresa', 'Mês', 'Valor Total', 'Status', 'Rateio'].map(h =>
+                React.createElement('th', { key: h }, h)
+              )
+            )
+          ),
+          React.createElement('tbody', null,
+            (data?.recentAccounts || []).map(acc =>
+              React.createElement('tr', { key: acc.id },
+                React.createElement('td', { className: 'td-mono' }, acc.account_number),
+                React.createElement('td', null, acc.company_name || '-'),
+                React.createElement('td', null, fmt.month(acc.reference_month?.slice(0,7))),
+                React.createElement('td', { className: 'td-num' }, fmt.currency(acc.total_amount)),
+                React.createElement('td', null, React.createElement(StatusBadge, { status: acc.status })),
+                React.createElement('td', null,
+                  acc.allocation_status
+                    ? React.createElement(StatusBadge, { status: acc.allocation_status })
+                    : React.createElement('span', { className: 'text-muted' }, 'Não processado')
+                )
+              )
+            )
+          )
+        )
+      )
+    )
+  );
+}
+
+// IMPORT PAGE
+function ImportPage() {
+  const [tab, setTab] = useState('vivo');
+  const [files, setFiles] = useState([]);
+  const [refMonth, setRefMonth] = useState(
+    new Date().toISOString().slice(0,7)
+  );
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState(null);
+  const { show, ToastEl } = useToast();
+  const fileRef = useRef();
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    const dropped = Array.from(e.dataTransfer.files);
+    setFiles(prev => [...prev, ...dropped]);
+  };
+
+  const handleSubmit = async () => {
+    if (!files.length) { show('Selecione ao menos um arquivo', 'error'); return; }
+    if (!refMonth) { show('Informe o mês de referência', 'error'); return; }
+
+    setLoading(true); setResult(null);
+    const results = [];
+
+    for (const file of files) {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('referenceMonth', refMonth);
+      try {
+        const r = await api.upload(`/imports/${tab}`, formData);
+        results.push({ file: file.name, success: true, ...r });
+      } catch(err) {
+        results.push({ file: file.name, success: false, error: err.message });
+      }
+    }
+
+    setResult(results);
+    const ok = results.filter(r => r.success).length;
+    const fail = results.length - ok;
+    show(`${ok} arquivo(s) importado(s) com sucesso${fail ? `, ${fail} com erro` : ''}`,
+         fail > 0 ? 'warning' : 'success');
+    setLoading(false);
+  };
+
+  return React.createElement('div', { className: 'page' },
+    ToastEl,
+    React.createElement('div', { className: 'tabs' },
+      ['vivo', 'goc'].map(t =>
+        React.createElement('button', {
+          key: t, className: `tab-btn ${tab === t ? 'active' : ''}`,
+          onClick: () => { setTab(t); setFiles([]); setResult(null); }
+        }, t === 'vivo' ? '📄 Arquivo Vivo' : '📋 Arquivo GOC')
+      )
+    ),
+
+    React.createElement('div', { className: 'grid-2' },
+      // Left: upload
+      React.createElement('div', { className: 'card' },
+        React.createElement('div', { className: 'card-header' },
+          React.createElement('div', { className: 'card-title' },
+            tab === 'vivo' ? 'Importar Conta Vivo (ZIP/TXT)' : 'Importar GOC (CSV)'
+          )
+        ),
+
+        React.createElement('div', { className: 'form-group' },
+          React.createElement('label', { className: 'form-label' }, 'Mês de Referência'),
+          React.createElement('input', {
+            type: 'month', className: 'form-control', value: refMonth,
+            onChange: e => setRefMonth(e.target.value)
+          })
+        ),
+
+        React.createElement('div', {
+          className: `dropzone${loading ? ' disabled' : ''}`,
+          onDrop: handleDrop,
+          onDragOver: e => e.preventDefault(),
+          onClick: () => !loading && fileRef.current.click(),
+        },
+          React.createElement('div', { className: 'dropzone-icon' }, tab === 'vivo' ? '🗜️' : '📊'),
+          React.createElement('h3', null, 'Arraste os arquivos aqui'),
+          React.createElement('p', null,
+            tab === 'vivo'
+              ? 'Aceita arquivos .ZIP ou .TXT da Vivo (múltiplos arquivos)'
+              : 'Aceita arquivo .CSV exportado do GOC'
+          ),
+          React.createElement('input', {
+            ref: fileRef, type: 'file', style: { display: 'none' },
+            multiple: tab === 'vivo', accept: tab === 'vivo' ? '.zip,.txt,.ZIP,.TXT' : '.csv,.CSV',
+            onChange: e => setFiles(Array.from(e.target.files))
+          })
+        ),
+
+        files.length > 0 && React.createElement('div', { className: 'mt-16' },
+          React.createElement('div', { className: 'card-title mb-16' }, `${files.length} arquivo(s) selecionado(s):`),
+          files.map((f, i) =>
+            React.createElement('div', { key: i, className: 'flex-between', style: { padding: '6px 0', borderBottom: '1px solid var(--border)' } },
+              React.createElement('span', { className: 'flex gap-8' },
+                React.createElement('span', null, '📄'),
+                React.createElement('span', null, f.name)
+              ),
+              React.createElement('span', { className: 'text-muted' },
+                `${(f.size / 1024).toFixed(0)} KB`,
+              )
+            )
+          )
+        ),
+
+        React.createElement('div', { className: 'flex gap-8 mt-16' },
+          React.createElement('button', {
+            className: 'btn btn-accent',
+            onClick: handleSubmit,
+            disabled: loading || !files.length
+          }, loading ? [React.createElement(Spinner, { key: 's' }), ' Importando...'] : '▲ Importar'),
+          files.length > 0 && React.createElement('button', {
+            className: 'btn btn-outline',
+            onClick: () => { setFiles([]); setResult(null); }
+          }, '✕ Limpar')
+        )
+      ),
+
+      // Right: results
+      React.createElement('div', { className: 'card' },
+        React.createElement('div', { className: 'card-title mb-16' }, 'Resultado da Importação'),
+        result
+          ? result.map((r, i) =>
+              React.createElement('div', {
+                key: i,
+                className: `alert ${r.success ? 'alert-success' : 'alert-danger'}`,
+                style: { marginBottom: 12 }
+              },
+                React.createElement('div', null,
+                  React.createElement('strong', null, r.file),
+                  React.createElement('br'),
+                  r.success
+                    ? `✓ ${r.message || 'Importado com sucesso'}`
+                    : `✗ ${r.error}`
+                ),
+                r.success && r.linesImported !== undefined && React.createElement('div', { style: { marginTop: 6, fontSize: 12 } },
+                  `Linhas: ${r.linesImported} | Total: ${fmt.currency(r.totalAmount)}`
+                ),
+                r.warnings?.length > 0 && React.createElement('div', { style: { marginTop: 6, fontSize: 12 } },
+                  `⚠ ${r.warnings.length} aviso(s)`
+                )
+              )
+            )
+          : React.createElement('div', { className: 'empty-state' },
+              React.createElement('p', null, 'Os resultados aparecerão aqui após a importação.')
+            ),
+
+        // Import guidelines
+        React.createElement('div', { className: 'separator' }),
+        React.createElement('div', { className: 'card-title mb-16' }, 'Instruções'),
+        tab === 'vivo'
+          ? React.createElement('ul', { style: { fontSize: 12, color: 'var(--text-secondary)', paddingLeft: 16, lineHeight: 2 } },
+              React.createElement('li', null, 'Baixe os arquivos ZIP no portal da Vivo'),
+              React.createElement('li', null, 'É possível importar múltiplos arquivos de uma vez'),
+              React.createElement('li', null, 'Cada ZIP contém um arquivo TXT com os dados da conta'),
+              React.createElement('li', null, 'O número da conta é extraído automaticamente'),
+              React.createElement('li', null, 'Reimportar substitui os dados existentes'),
+            )
+          : React.createElement('ul', { style: { fontSize: 12, color: 'var(--text-secondary)', paddingLeft: 16, lineHeight: 2 } },
+              React.createElement('li', null, 'Exporte o relatório de entregas do sistema GOC'),
+              React.createElement('li', null, 'Arquivo CSV com separador ";" (ponto e vírgula)'),
+              React.createElement('li', null, 'Certifique-se que o mês selecionado está correto'),
+              React.createElement('li', null, 'O sistema valida CPF, linhas e centros de custo'),
+            )
+      )
+    )
+  );
+}
+
+// ALLOCATIONS PAGE
+function AllocationsPage() {
+  const [accounts, setAccounts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [processing, setProcessing] = useState(null);
+  const [modalId, setModalId] = useState(null);
+  const [modalData, setModalData] = useState(null);
+  const [closeModal, setCloseModal] = useState(null);
+  const { show, ToastEl } = useToast();
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const [accs, allocs] = await Promise.all([
+        api.get('/reports/monthly-summary?month=' + new Date().toISOString().slice(0,7))
+          .catch(() => ({ summary: [] })),
+        api.get('/allocations').catch(() => ({ allocations: [] })),
+      ]);
+      // Merge
+      const allocMap = new Map((allocs.allocations || []).map(a => [a.vivo_account_id, a]));
+      setAccounts(accs.summary || []);
+    } finally { setLoading(false); }
+  };
+
+  const handleProcess = async (accountId, simulate = false) => {
+    setProcessing(accountId);
+    try {
+      const r = await api.post('/allocations/process', { vivoAccountId: accountId, simulate });
+      show(simulate ? 'Simulação concluída!' : 'Rateio processado com sucesso!');
+      if (!simulate) loadData();
+      return r;
+    } catch(err) {
+      show(err.message, 'error');
+    } finally { setProcessing(null); }
+  };
+
+  const viewDetail = async (id) => {
+    setModalId(id);
+    try {
+      const d = await api.get(`/allocations/${id}`);
+      setModalData(d);
+    } catch(err) { show(err.message, 'error'); setModalId(null); }
+  };
+
+  return React.createElement('div', { className: 'page' },
+    ToastEl,
+    React.createElement('div', { className: 'flex-between mb-24' },
+      React.createElement('div', null,
+        React.createElement('h2', { style: { fontSize: 18, fontWeight: 700 } }, 'Rateio Mensal'),
+        React.createElement('p', { className: 'text-muted mt-4' }, 'Processamento e conferência por conta')
+      ),
+      React.createElement('button', { className: 'btn btn-outline', onClick: loadData }, '↺ Atualizar')
+    ),
+
+    loading ? React.createElement('div', { style: { textAlign: 'center', padding: 40 } }, React.createElement(Spinner)) :
+
+    React.createElement('div', { className: 'card' },
+      React.createElement('div', { className: 'table-container' },
+        React.createElement('table', null,
+          React.createElement('thead', null,
+            React.createElement('tr', null,
+              ['Conta', 'Empresa', 'Total Fatura', 'Total Rateado', 'Diferença', 'Linhas', 'Sem CC', 'Status', 'Ações'].map(h =>
+                React.createElement('th', { key: h }, h)
+              )
+            )
+          ),
+          React.createElement('tbody', null,
+            accounts.length === 0
+              ? React.createElement('tr', null,
+                  React.createElement('td', { colSpan: 9, style: { textAlign: 'center', padding: 32, color: 'var(--text-muted)' } },
+                    'Nenhuma conta importada. Vá para Importação para adicionar arquivos.'
+                  )
+                )
+              : accounts.map(acc =>
+                  React.createElement('tr', { key: acc.account_number },
+                    React.createElement('td', { className: 'td-mono' }, acc.account_number),
+                    React.createElement('td', null, acc.company_name || '-'),
+                    React.createElement('td', { className: 'td-num' }, fmt.currency(acc.total_invoice_amount)),
+                    React.createElement('td', { className: 'td-num' }, fmt.currency(acc.total_allocated_amount)),
+                    React.createElement('td', {
+                      className: `td-num ${Math.abs(acc.difference || 0) > 0.01 ? 'text-warning' : 'text-success'}`
+                    }, fmt.currency(acc.difference)),
+                    React.createElement('td', { className: 'td-num' }, acc.total_lines || '-'),
+                    React.createElement('td', { className: `td-num ${(acc.lines_without_cc || 0) > 0 ? 'text-warning' : ''}` },
+                      acc.lines_without_cc || 0
+                    ),
+                    React.createElement('td', null, React.createElement(StatusBadge, { status: acc.status || 'imported' })),
+                    React.createElement('td', null,
+                      React.createElement('div', { className: 'flex gap-8' },
+                        acc.status !== 'closed' && React.createElement('button', {
+                          className: 'btn btn-accent btn-sm',
+                          disabled: processing === acc.account_number,
+                          onClick: () => show('Use o ID da conta para processar', 'warning')
+                        }, processing === acc.account_number ? React.createElement(Spinner) : '⚡ Ratear'),
+                        acc.allocation_id && React.createElement('button', {
+                          className: 'btn btn-outline btn-sm',
+                          onClick: () => viewDetail(acc.allocation_id)
+                        }, '👁 Ver')
+                      )
+                    )
+                  )
+                )
+          )
+        )
+      )
+    ),
+
+    // Detail Modal
+    modalId && modalData && React.createElement('div', { className: 'modal-overlay', onClick: e => e.target === e.currentTarget && setModalId(null) },
+      React.createElement('div', { className: 'modal', style: { maxWidth: 800 } },
+        React.createElement('div', { className: 'modal-header' },
+          React.createElement('div', { className: 'modal-title' },
+            `Rateio — ${fmt.month(modalData.allocation?.reference_month?.slice(0,7))}`
+          ),
+          React.createElement('button', { className: 'modal-close', onClick: () => setModalId(null) }, '×')
+        ),
+
+        React.createElement('div', { className: 'kpi-grid' },
+          React.createElement('div', { className: 'kpi-card kpi-card-accent' },
+            React.createElement('div', { className: 'kpi-label' }, 'Total Fatura'),
+            React.createElement('div', { className: 'kpi-value', style: { fontSize: 18 } }, fmt.currency(modalData.allocation?.total_invoice_amount))
+          ),
+          React.createElement('div', { className: 'kpi-card kpi-card-success' },
+            React.createElement('div', { className: 'kpi-label' }, 'Total Rateado'),
+            React.createElement('div', { className: 'kpi-value', style: { fontSize: 18 } }, fmt.currency(modalData.allocation?.total_allocated_amount))
+          ),
+          React.createElement('div', { className: `kpi-card ${Math.abs(modalData.allocation?.difference || 0) > 0.01 ? 'kpi-card-warning' : 'kpi-card-success'}` },
+            React.createElement('div', { className: 'kpi-label' }, 'Diferença'),
+            React.createElement('div', { className: 'kpi-value', style: { fontSize: 18 } }, fmt.currency(modalData.allocation?.difference))
+          ),
+        ),
+
+        React.createElement('div', { className: 'table-container', style: { marginTop: 16 } },
+          React.createElement('table', null,
+            React.createElement('thead', null,
+              React.createElement('tr', null,
+                ['CC', 'Nome', 'Linhas', 'Valor Direto', 'Valor Rateado', 'Total', '%'].map(h =>
+                  React.createElement('th', { key: h }, h)
+                )
+              )
+            ),
+            React.createElement('tbody', null,
+              (modalData.items || []).map(item =>
+                React.createElement('tr', { key: item.id },
+                  React.createElement('td', { className: 'td-mono' }, item.code),
+                  React.createElement('td', null, item.name),
+                  React.createElement('td', { className: 'td-num' }, item.direct_line_count),
+                  React.createElement('td', { className: 'td-num' }, fmt.currency(item.direct_amount)),
+                  React.createElement('td', { className: 'td-num' }, fmt.currency(item.allocated_amount)),
+                  React.createElement('td', { className: 'td-num', style: { fontWeight: 700 } }, fmt.currency(item.total_amount)),
+                  React.createElement('td', { className: 'td-num' }, fmt.pct(item.allocation_percentage))
+                )
+              )
+            )
+          )
+        ),
+
+        React.createElement('div', { className: 'modal-footer' },
+          React.createElement('a', {
+            href: `${API_BASE}/allocations/${modalId}/export?format=xlsx&Authorization=Bearer ${api.getToken()}`,
+            className: 'btn btn-outline btn-sm'
+          }, '⬇ Excel'),
+          React.createElement('button', { className: 'btn btn-outline', onClick: () => setModalId(null) }, 'Fechar')
+        )
+      )
+    )
+  );
+}
+
+// RULES PAGE
+function RulesPage() {
+  const [rules, setRules] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ name: '', description: '', rule_type: 'proportional_lines', applies_to: 'unallocated', valid_from: '', priority: 10, config: {}, active: true });
+  const { show, ToastEl } = useToast();
+
+  useEffect(() => {
+    api.get('/rules').then(d => setRules(d.rules || [])).finally(() => setLoading(false));
+  }, []);
+
+  const handleSave = async () => {
+    try {
+      await api.post('/rules', form);
+      show('Regra criada com sucesso!');
+      setShowForm(false);
+      const d = await api.get('/rules');
+      setRules(d.rules || []);
+    } catch(err) { show(err.message, 'error'); }
+  };
+
+  const RULE_TYPES = {
+    proportional_lines: 'Proporcional por Linhas',
+    proportional_value: 'Proporcional por Valor',
+    fixed_percentage: 'Percentual Fixo',
+    manual: 'Valor Manual',
+    by_charge_type: 'Por Tipo de Cobrança',
+    specific: 'Regra Específica',
+  };
+
+  return React.createElement('div', { className: 'page' },
+    ToastEl,
+    React.createElement('div', { className: 'flex-between mb-24' },
+      React.createElement('div', null,
+        React.createElement('h2', { style: { fontSize: 18, fontWeight: 700 } }, 'Regras de Rateio'),
+        React.createElement('p', { className: 'text-muted mt-4' }, 'Configure como valores sem CC são distribuídos')
+      ),
+      React.createElement('button', { className: 'btn btn-accent', onClick: () => setShowForm(true) }, '+ Nova Regra')
+    ),
+
+    loading ? React.createElement(Spinner) :
+
+    rules.length === 0
+      ? React.createElement('div', { className: 'card' },
+          React.createElement('div', { className: 'empty-state' },
+            React.createElement('h3', null, 'Nenhuma regra cadastrada'),
+            React.createElement('p', null, 'Crie regras para distribuir automaticamente os valores sem centro de custo'),
+            React.createElement('button', { className: 'btn btn-accent mt-16', onClick: () => setShowForm(true) }, '+ Criar Primeira Regra')
+          )
+        )
+      : React.createElement('div', { className: 'grid-auto' },
+          rules.map(rule =>
+            React.createElement('div', { key: rule.id, className: 'card' },
+              React.createElement('div', { className: 'flex-between mb-16' },
+                React.createElement('div', { className: 'card-title' }, rule.name),
+                React.createElement('span', { className: `badge ${rule.active ? 'badge-success' : 'badge-gray'}` },
+                  rule.active ? 'Ativa' : 'Inativa'
+                )
+              ),
+              React.createElement('div', { className: 'text-muted mb-8' }, rule.description),
+              React.createElement('div', { style: { fontSize: 12 } },
+                React.createElement('div', { className: 'flex gap-8 mb-4' },
+                  React.createElement('span', { className: 'badge badge-purple' }, RULE_TYPES[rule.rule_type] || rule.rule_type),
+                  React.createElement('span', { className: 'badge badge-info' }, `Prio. ${rule.priority}`)
+                ),
+                React.createElement('div', { className: 'text-muted mt-8' },
+                  `Vigência: ${fmt.date(rule.valid_from)} ${rule.valid_until ? `até ${fmt.date(rule.valid_until)}` : '(sem fim)'}`
+                )
+              )
+            )
+          )
+        ),
+
+    // New rule modal
+    showForm && React.createElement('div', { className: 'modal-overlay' },
+      React.createElement('div', { className: 'modal' },
+        React.createElement('div', { className: 'modal-header' },
+          React.createElement('div', { className: 'modal-title' }, 'Nova Regra de Rateio'),
+          React.createElement('button', { className: 'modal-close', onClick: () => setShowForm(false) }, '×')
+        ),
+        React.createElement('div', { className: 'form-group' },
+          React.createElement('label', { className: 'form-label' }, 'Nome da Regra'),
+          React.createElement('input', {
+            type: 'text', className: 'form-control', value: form.name,
+            onChange: e => setForm(f => ({ ...f, name: e.target.value })),
+            placeholder: 'Ex: Rateio Proporcional por Linhas'
+          })
+        ),
+        React.createElement('div', { className: 'form-group' },
+          React.createElement('label', { className: 'form-label' }, 'Tipo de Regra'),
+          React.createElement('select', {
+            className: 'form-control', value: form.rule_type,
+            onChange: e => setForm(f => ({ ...f, rule_type: e.target.value }))
+          },
+            Object.entries(RULE_TYPES).map(([k, v]) =>
+              React.createElement('option', { key: k, value: k }, v)
+            )
+          )
+        ),
+        React.createElement('div', { className: 'grid-2' },
+          React.createElement('div', { className: 'form-group' },
+            React.createElement('label', { className: 'form-label' }, 'Válida a partir de'),
+            React.createElement('input', {
+              type: 'date', className: 'form-control', value: form.valid_from,
+              onChange: e => setForm(f => ({ ...f, valid_from: e.target.value }))
+            })
+          ),
+          React.createElement('div', { className: 'form-group' },
+            React.createElement('label', { className: 'form-label' }, 'Prioridade (1 = maior)'),
+            React.createElement('input', {
+              type: 'number', className: 'form-control', value: form.priority, min: 1,
+              onChange: e => setForm(f => ({ ...f, priority: parseInt(e.target.value) }))
+            })
+          )
+        ),
+        React.createElement('div', { className: 'form-group' },
+          React.createElement('label', { className: 'form-label' }, 'Descrição'),
+          React.createElement('textarea', {
+            className: 'form-control', rows: 3, value: form.description,
+            onChange: e => setForm(f => ({ ...f, description: e.target.value }))
+          })
+        ),
+        React.createElement('div', { className: 'modal-footer' },
+          React.createElement('button', { className: 'btn btn-outline', onClick: () => setShowForm(false) }, 'Cancelar'),
+          React.createElement('button', { className: 'btn btn-accent', onClick: handleSave }, 'Criar Regra')
+        )
+      )
+    )
+  );
+}
+
+// COST CENTERS PAGE
+function CostCentersPage() {
+  const [costCenters, setCostCenters] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ code: '', name: '', description: '' });
+  const [search, setSearch] = useState('');
+  const { show, ToastEl } = useToast();
+
+  useEffect(() => {
+    api.get('/cost-centers').then(d => setCostCenters(d.costCenters || [])).finally(() => setLoading(false));
+  }, []);
+
+  const handleSave = async () => {
+    try {
+      await api.post('/cost-centers', form);
+      show('Centro de custo criado!');
+      setShowForm(false);
+      setForm({ code: '', name: '', description: '' });
+      const d = await api.get('/cost-centers');
+      setCostCenters(d.costCenters || []);
+    } catch(err) { show(err.message, 'error'); }
+  };
+
+  const filtered = costCenters.filter(cc =>
+    cc.code.toLowerCase().includes(search.toLowerCase()) ||
+    cc.name.toLowerCase().includes(search.toLowerCase())
+  );
+
+  return React.createElement('div', { className: 'page' },
+    ToastEl,
+    React.createElement('div', { className: 'flex-between mb-24' },
+      React.createElement('div', null,
+        React.createElement('h2', { style: { fontSize: 18, fontWeight: 700 } }, 'Centros de Custo'),
+        React.createElement('p', { className: 'text-muted mt-4' }, `${costCenters.length} centros cadastrados`)
+      ),
+      React.createElement('button', { className: 'btn btn-accent', onClick: () => setShowForm(true) }, '+ Novo CC')
+    ),
+
+    React.createElement('div', { className: 'card' },
+      React.createElement('div', { className: 'flex-between mb-16' },
+        React.createElement('input', {
+          type: 'text', className: 'form-control', style: { maxWidth: 300 },
+          placeholder: '🔍 Buscar por código ou nome...',
+          value: search, onChange: e => setSearch(e.target.value)
+        }),
+        React.createElement('span', { className: 'text-muted' }, `${filtered.length} resultado(s)`)
+      ),
+
+      loading ? React.createElement(Spinner) :
+      React.createElement('div', { className: 'table-container' },
+        React.createElement('table', null,
+          React.createElement('thead', null,
+            React.createElement('tr', null,
+              ['Código', 'Nome', 'Descrição', 'Qtd Linhas', 'Status'].map(h =>
+                React.createElement('th', { key: h }, h)
+              )
+            )
+          ),
+          React.createElement('tbody', null,
+            filtered.map(cc =>
+              React.createElement('tr', { key: cc.id },
+                React.createElement('td', { className: 'td-mono' }, cc.code),
+                React.createElement('td', null, cc.name),
+                React.createElement('td', { className: 'text-muted' }, cc.description || '-'),
+                React.createElement('td', { className: 'td-num' }, cc.line_count || 0),
+                React.createElement('td', null,
+                  React.createElement('span', { className: `badge ${cc.active ? 'badge-success' : 'badge-gray'}` },
+                    cc.active ? 'Ativo' : 'Inativo'
+                  )
+                )
+              )
+            )
+          )
+        )
+      )
+    ),
+
+    showForm && React.createElement('div', { className: 'modal-overlay' },
+      React.createElement('div', { className: 'modal' },
+        React.createElement('div', { className: 'modal-header' },
+          React.createElement('div', { className: 'modal-title' }, 'Novo Centro de Custo'),
+          React.createElement('button', { className: 'modal-close', onClick: () => setShowForm(false) }, '×')
+        ),
+        React.createElement('div', { className: 'form-group' },
+          React.createElement('label', { className: 'form-label' }, 'Código'),
+          React.createElement('input', {
+            type: 'text', className: 'form-control', value: form.code,
+            onChange: e => setForm(f => ({ ...f, code: e.target.value })),
+            placeholder: 'Ex: 45300'
+          })
+        ),
+        React.createElement('div', { className: 'form-group' },
+          React.createElement('label', { className: 'form-label' }, 'Nome'),
+          React.createElement('input', {
+            type: 'text', className: 'form-control', value: form.name,
+            onChange: e => setForm(f => ({ ...f, name: e.target.value })),
+            placeholder: 'Ex: COMERCIAL - SP'
+          })
+        ),
+        React.createElement('div', { className: 'form-group' },
+          React.createElement('label', { className: 'form-label' }, 'Descrição (opcional)'),
+          React.createElement('input', {
+            type: 'text', className: 'form-control', value: form.description,
+            onChange: e => setForm(f => ({ ...f, description: e.target.value }))
+          })
+        ),
+        React.createElement('div', { className: 'modal-footer' },
+          React.createElement('button', { className: 'btn btn-outline', onClick: () => setShowForm(false) }, 'Cancelar'),
+          React.createElement('button', { className: 'btn btn-accent', onClick: handleSave }, 'Criar')
+        )
+      )
+    )
+  );
+}
+
+// AUDIT PAGE
+function AuditPage() {
+  const [logs, setLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api.get('/audit').then(d => setLogs(d.logs || [])).catch(console.error).finally(() => setLoading(false));
+  }, []);
+
+  const ACTION_LABELS = {
+    allocation_processed: { label: 'Rateio Processado', color: 'purple' },
+    allocation_closed: { label: 'Rateio Fechado', color: 'success' },
+    allocation_reopened: { label: 'Rateio Reaberto', color: 'warning' },
+    import_completed: { label: 'Importação Concluída', color: 'info' },
+  };
+
+  return React.createElement('div', { className: 'page' },
+    React.createElement('div', { className: 'flex-between mb-24' },
+      React.createElement('div', null,
+        React.createElement('h2', { style: { fontSize: 18, fontWeight: 700 } }, 'Auditoria'),
+        React.createElement('p', { className: 'text-muted mt-4' }, 'Histórico completo de ações')
+      )
+    ),
+
+    loading ? React.createElement(Spinner) :
+    React.createElement('div', { className: 'card' },
+      logs.length === 0
+        ? React.createElement('div', { className: 'empty-state' },
+            React.createElement('h3', null, 'Nenhum registro de auditoria'),
+            React.createElement('p', null, 'As ações serão registradas aqui')
+          )
+        : React.createElement('div', { className: 'timeline' },
+            logs.map((log, i) => {
+              const meta = ACTION_LABELS[log.action] || { label: log.action, color: 'gray' };
+              return React.createElement('div', { key: log.id, className: 'timeline-item' },
+                React.createElement('div', { className: 'timeline-dot' }),
+                React.createElement('div', { className: 'timeline-time' },
+                  `${fmt.date(log.created_at)} — ${log.user_name || 'Sistema'}`
+                ),
+                React.createElement('div', { className: 'timeline-content flex gap-8' },
+                  React.createElement('span', { className: `badge badge-${meta.color}` }, meta.label),
+                  log.description
+                )
+              );
+            })
+          )
+    )
+  );
+}
+
+// ===== RECONCILIATION PAGE =====
+function ReconciliationPage() {
+  const [accounts, setAccounts] = useState([]);
+  const [selected, setSelected] = useState(null);
+  const [recon, setRecon] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [loadingRecon, setLoadingRecon] = useState(false);
+
+  useEffect(() => {
+    api.get('/allocations').then(d => { setAccounts(d.accounts || []); setLoading(false); });
+  }, []);
+
+  const loadRecon = (acc) => {
+    setSelected(acc);
+    setLoadingRecon(true);
+    api.get(`/allocations/${acc.id}/reconciliation`)
+      .then(d => setRecon(d))
+      .catch(() => setRecon({ error: true }))
+      .finally(() => setLoadingRecon(false));
+  };
+
+  return React.createElement('div', { className: 'page' },
+    React.createElement('div', { className: 'flex-between mb-24' },
+      React.createElement('div', null,
+        React.createElement('h2', { style: { fontSize: 18, fontWeight: 700 } }, 'Conferência e Reconciliação'),
+        React.createElement('p', { className: 'text-muted mt-4' }, 'Compare conta Vivo × arquivo GOC e identifique divergências')
+      )
+    ),
+
+    loading ? React.createElement(Spinner) :
+    React.createElement('div', { style: { display: 'grid', gridTemplateColumns: '300px 1fr', gap: 16, alignItems: 'start' } },
+
+      // coluna esquerda — lista de contas
+      React.createElement('div', { className: 'card' },
+        React.createElement('div', { style: { fontWeight: 600, marginBottom: 12, color: 'var(--text-secondary)', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1 } }, 'Selecione a conta'),
+        accounts.length === 0
+          ? React.createElement('p', { className: 'text-muted' }, 'Nenhuma conta importada')
+          : accounts.map(acc =>
+              React.createElement('div', {
+                key: acc.id,
+                onClick: () => loadRecon(acc),
+                style: {
+                  padding: '10px 12px', borderRadius: 6, cursor: 'pointer', marginBottom: 4,
+                  background: selected?.id === acc.id ? 'var(--surface-3)' : 'transparent',
+                  border: `1px solid ${selected?.id === acc.id ? 'var(--brand-primary)' : 'transparent'}`,
+                  transition: 'all 0.15s',
+                }
+              },
+                React.createElement('div', { style: { fontWeight: 600, fontSize: 13 } }, `Conta ${acc.account_number}`),
+                React.createElement('div', { className: 'text-muted', style: { fontSize: 11 } },
+                  `${fmt.month(acc.reference_month)} · ${fmt.currency(acc.total_amount)}`)
+              )
+            )
+      ),
+
+      // coluna direita — resultado
+      React.createElement('div', null,
+        !selected
+          ? React.createElement('div', { className: 'card empty-state' },
+              React.createElement('h3', null, '← Selecione uma conta'),
+              React.createElement('p', null, 'A conferência será exibida aqui')
+            )
+          : loadingRecon
+          ? React.createElement('div', { className: 'card' }, React.createElement(Spinner))
+          : recon?.error
+          ? React.createElement('div', { className: 'card' },
+              React.createElement('p', { style: { color: 'var(--danger)' } }, 'Erro ao carregar reconciliação.')
+            )
+          : React.createElement('div', null,
+
+              // KPIs
+              React.createElement('div', { className: 'kpi-grid mb-24' },
+                React.createElement('div', { className: 'kpi-card' },
+                  React.createElement('div', { className: 'kpi-label' }, 'Total Vivo'),
+                  React.createElement('div', { className: 'kpi-value', style: { color: 'var(--brand-primary)' } },
+                    fmt.currency(recon.totalVivo || 0)
+                  )
+                ),
+                React.createElement('div', { className: 'kpi-card' },
+                  React.createElement('div', { className: 'kpi-label' }, 'Total Rateado'),
+                  React.createElement('div', { className: 'kpi-value', style: { color: 'var(--success)' } },
+                    fmt.currency(recon.totalAllocated || 0)
+                  )
+                ),
+                React.createElement('div', { className: 'kpi-card' },
+                  React.createElement('div', { className: 'kpi-label' }, 'Diferença'),
+                  React.createElement('div', {
+                    className: 'kpi-value',
+                    style: { color: Math.abs(recon.difference || 0) < 0.01 ? 'var(--success)' : 'var(--danger)' }
+                  }, fmt.currency(recon.difference || 0))
+                ),
+                React.createElement('div', { className: 'kpi-card' },
+                  React.createElement('div', { className: 'kpi-label' }, 'Linhas sem CC'),
+                  React.createElement('div', { className: 'kpi-value', style: { color: 'var(--warning)' } },
+                    recon.linesWithoutCC?.length || 0
+                  )
+                )
+              ),
+
+              // Linhas sem CC
+              (recon.linesWithoutCC?.length > 0) && React.createElement('div', { className: 'card mb-16' },
+                React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 } },
+                  React.createElement('span', { className: 'badge badge-warning' }, '⚠ Linhas sem Centro de Custo'),
+                  React.createElement('span', { className: 'text-muted', style: { fontSize: 12 } },
+                    `${recon.linesWithoutCC.length} linha(s)`)
+                ),
+                React.createElement('table', { className: 'table' },
+                  React.createElement('thead', null,
+                    React.createElement('tr', null,
+                      ['Telefone', 'Valor', 'Situação'].map(h =>
+                        React.createElement('th', { key: h }, h)
+                      )
+                    )
+                  ),
+                  React.createElement('tbody', null,
+                    recon.linesWithoutCC.map(l =>
+                      React.createElement('tr', { key: l.number },
+                        React.createElement('td', null, React.createElement('code', null, fmt.phone(l.number))),
+                        React.createElement('td', null, fmt.currency(l.amount || 0)),
+                        React.createElement('td', null, React.createElement('span', { className: 'badge badge-warning' }, 'Sem CC'))
+                      )
+                    )
+                  )
+                )
+              ),
+
+              // Linhas Vivo não encontradas no GOC
+              (recon.onlyInVivo?.length > 0) && React.createElement('div', { className: 'card mb-16' },
+                React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 } },
+                  React.createElement('span', { className: 'badge badge-danger' }, '✗ Na Vivo, ausente no GOC'),
+                  React.createElement('span', { className: 'text-muted', style: { fontSize: 12 } },
+                    `${recon.onlyInVivo.length} linha(s)`)
+                ),
+                React.createElement('table', { className: 'table' },
+                  React.createElement('thead', null,
+                    React.createElement('tr', null,
+                      ['Telefone', 'Valor Vivo'].map(h => React.createElement('th', { key: h }, h))
+                    )
+                  ),
+                  React.createElement('tbody', null,
+                    recon.onlyInVivo.map(l =>
+                      React.createElement('tr', { key: l.number },
+                        React.createElement('td', null, React.createElement('code', null, fmt.phone(l.number))),
+                        React.createElement('td', null, fmt.currency(l.amount || 0))
+                      )
+                    )
+                  )
+                )
+              ),
+
+              // Linhas GOC não encontradas na Vivo
+              (recon.onlyInGOC?.length > 0) && React.createElement('div', { className: 'card mb-16' },
+                React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 } },
+                  React.createElement('span', { className: 'badge badge-info' }, 'ℹ No GOC, ausente na Vivo'),
+                  React.createElement('span', { className: 'text-muted', style: { fontSize: 12 } },
+                    `${recon.onlyInGOC.length} linha(s)`)
+                ),
+                React.createElement('table', { className: 'table' },
+                  React.createElement('thead', null,
+                    React.createElement('tr', null,
+                      ['Telefone', 'Funcionário', 'CC'].map(h => React.createElement('th', { key: h }, h))
+                    )
+                  ),
+                  React.createElement('tbody', null,
+                    recon.onlyInGOC.map((l, i) =>
+                      React.createElement('tr', { key: i },
+                        React.createElement('td', null, React.createElement('code', null, fmt.phone(l.number))),
+                        React.createElement('td', null, l.employee || '—'),
+                        React.createElement('td', null, l.costCenter || '—')
+                      )
+                    )
+                  )
+                )
+              ),
+
+              // Tabela completa de reconciliação por linha
+              recon.lines?.length > 0 && React.createElement('div', { className: 'card' },
+                React.createElement('div', { style: { fontWeight: 600, marginBottom: 12 } }, 'Detalhamento por Linha'),
+                React.createElement('div', { style: { overflowX: 'auto' } },
+                  React.createElement('table', { className: 'table' },
+                    React.createElement('thead', null,
+                      React.createElement('tr', null,
+                        ['Telefone', 'Funcionário', 'CC', 'Valor Vivo', 'Status'].map(h =>
+                          React.createElement('th', { key: h }, h)
+                        )
+                      )
+                    ),
+                    React.createElement('tbody', null,
+                      recon.lines.map((l, i) =>
+                        React.createElement('tr', { key: i },
+                          React.createElement('td', null, React.createElement('code', null, fmt.phone(l.number))),
+                          React.createElement('td', null, l.employee || '—'),
+                          React.createElement('td', null, l.costCenter
+                            ? React.createElement('span', { className: 'badge badge-info' }, l.costCenter)
+                            : React.createElement('span', { className: 'badge badge-warning' }, 'Sem CC')
+                          ),
+                          React.createElement('td', null, fmt.currency(l.vivoAmount || 0)),
+                          React.createElement('td', null,
+                            React.createElement('span', {
+                              className: `badge badge-${l.status === 'matched' ? 'success' : l.status === 'no_cc' ? 'warning' : 'danger'}`
+                            }, l.status === 'matched' ? '✓ Vinculado' : l.status === 'no_cc' ? '⚠ Sem CC' : '✗ Divergente')
+                          )
+                        )
+                      )
+                    )
+                  )
+                )
+              )
+            )
+      )
+    )
+  );
+}
+
+// ===== USERS PAGE =====
+function UsersPage() {
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [editUser, setEditUser] = useState(null);
+  const [form, setForm] = useState({ name: '', email: '', role: 'analyst', password: '' });
+  const [saving, setSaving] = useState(false);
+  const { toast } = useToast();
+
+  const ROLES = { admin: 'Administrador', analyst: 'Analista', viewer: 'Consulta', auditor: 'Auditoria' };
+  const ROLE_COLORS = { admin: 'danger', analyst: 'info', viewer: 'gray', auditor: 'purple' };
+
+  const load = () => api.get('/users').then(d => { setUsers(d.users || []); setLoading(false); });
+  useEffect(() => { load(); }, []);
+
+  const openCreate = () => { setEditUser(null); setForm({ name: '', email: '', role: 'analyst', password: '' }); setShowModal(true); };
+  const openEdit = (u) => { setEditUser(u); setForm({ name: u.name, email: u.email, role: u.role_name, password: '' }); setShowModal(true); };
+
+  const save = async () => {
+    if (!form.name || !form.email) return toast('Preencha nome e e-mail', 'error');
+    if (!editUser && !form.password) return toast('Informe uma senha', 'error');
+    setSaving(true);
+    try {
+      if (editUser) {
+        await api.put(`/users/${editUser.id}`, form);
+        toast('Usuário atualizado', 'success');
+      } else {
+        await api.post('/users', form);
+        toast('Usuário criado', 'success');
+      }
+      setShowModal(false);
+      load();
+    } catch (e) {
+      toast(e.message || 'Erro ao salvar', 'error');
+    } finally { setSaving(false); }
+  };
+
+  return React.createElement('div', { className: 'page' },
+    React.createElement('div', { className: 'flex-between mb-24' },
+      React.createElement('div', null,
+        React.createElement('h2', { style: { fontSize: 18, fontWeight: 700 } }, 'Gestão de Usuários'),
+        React.createElement('p', { className: 'text-muted mt-4' }, 'Controle de acesso e perfis de permissão')
+      ),
+      React.createElement('button', { className: 'btn btn-primary', onClick: openCreate }, '+ Novo Usuário')
+    ),
+
+    loading ? React.createElement(Spinner) :
+    React.createElement('div', { className: 'card' },
+      users.length === 0
+        ? React.createElement('div', { className: 'empty-state' },
+            React.createElement('h3', null, 'Nenhum usuário cadastrado'),
+            React.createElement('p', null, 'Clique em "+ Novo Usuário" para começar')
+          )
+        : React.createElement('table', { className: 'table' },
+            React.createElement('thead', null,
+              React.createElement('tr', null,
+                ['Nome', 'E-mail', 'Perfil', 'Último acesso', 'Ações'].map(h =>
+                  React.createElement('th', { key: h }, h)
+                )
+              )
+            ),
+            React.createElement('tbody', null,
+              users.map(u =>
+                React.createElement('tr', { key: u.id },
+                  React.createElement('td', null,
+                    React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: 8 } },
+                      React.createElement('div', {
+                        style: {
+                          width: 32, height: 32, borderRadius: '50%',
+                          background: 'var(--brand-primary)', color: '#fff',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontWeight: 700, fontSize: 13, flexShrink: 0
+                        }
+                      }, u.name[0].toUpperCase()),
+                      React.createElement('span', { style: { fontWeight: 500 } }, u.name)
+                    )
+                  ),
+                  React.createElement('td', null, React.createElement('code', { style: { fontSize: 12 } }, u.email)),
+                  React.createElement('td', null,
+                    React.createElement('span', { className: `badge badge-${ROLE_COLORS[u.role_name] || 'gray'}` },
+                      ROLES[u.role_name] || u.role_name
+                    )
+                  ),
+                  React.createElement('td', { className: 'text-muted' }, u.last_login ? fmt.date(u.last_login) : 'Nunca'),
+                  React.createElement('td', null,
+                    React.createElement('button', {
+                      className: 'btn btn-ghost',
+                      style: { fontSize: 12 },
+                      onClick: () => openEdit(u)
+                    }, '✏ Editar')
+                  )
+                )
+              )
+            )
+          )
+    ),
+
+    showModal && React.createElement(Modal, {
+      title: editUser ? 'Editar Usuário' : 'Novo Usuário',
+      onClose: () => setShowModal(false),
+      footer: React.createElement('button', { className: 'btn btn-primary', onClick: save, disabled: saving },
+        saving ? 'Salvando…' : 'Salvar'
+      )
+    },
+      React.createElement('div', { className: 'form-grid' },
+        React.createElement('div', { className: 'form-group' },
+          React.createElement('label', null, 'Nome completo'),
+          React.createElement('input', {
+            type: 'text', className: 'input', value: form.name,
+            onChange: e => setForm(f => ({ ...f, name: e.target.value })), placeholder: 'João Silva'
+          })
+        ),
+        React.createElement('div', { className: 'form-group' },
+          React.createElement('label', null, 'E-mail'),
+          React.createElement('input', {
+            type: 'email', className: 'input', value: form.email,
+            onChange: e => setForm(f => ({ ...f, email: e.target.value })), placeholder: 'joao@empresa.com.br'
+          })
+        ),
+        React.createElement('div', { className: 'form-group' },
+          React.createElement('label', null, 'Perfil de acesso'),
+          React.createElement('select', {
+            className: 'input', value: form.role,
+            onChange: e => setForm(f => ({ ...f, role: e.target.value }))
+          },
+            Object.entries(ROLES).map(([k, v]) =>
+              React.createElement('option', { key: k, value: k }, v)
+            )
+          )
+        ),
+        React.createElement('div', { className: 'form-group' },
+          React.createElement('label', null, editUser ? 'Nova senha (deixe vazio para manter)' : 'Senha'),
+          React.createElement('input', {
+            type: 'password', className: 'input', value: form.password,
+            onChange: e => setForm(f => ({ ...f, password: e.target.value })),
+            placeholder: editUser ? '••••••••' : 'Mínimo 8 caracteres'
+          })
+        )
+      ),
+      React.createElement('div', { className: 'card mt-16', style: { background: 'var(--surface-2)', borderRadius: 6, padding: 12 } },
+        React.createElement('div', { style: { fontWeight: 600, fontSize: 12, marginBottom: 8, color: 'var(--text-secondary)' } }, 'PERMISSÕES DO PERFIL'),
+        React.createElement('div', { style: { fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.8 } },
+          form.role === 'admin' && '✓ Acesso total ao sistema, gestão de usuários, reabertura de meses',
+          form.role === 'analyst' && '✓ Importar arquivos, processar rateios, fechar mês, exportar relatórios',
+          form.role === 'viewer' && '✓ Visualizar dashboards, relatórios e histórico (somente leitura)',
+          form.role === 'auditor' && '✓ Visualizar logs de auditoria, relatórios e conferência'
+        )
+      )
+    )
+  );
+}
+
+// ===== REPORTS PAGE =====
+function ReportsPage() {
+  const [tab, setTab] = useState('monthly');
+  const [loading, setLoading] = useState(false);
+  const [data, setData] = useState(null);
+  const [filters, setFilters] = useState({ month: '', ccCode: '', lineNumber: '', month2: '' });
+
+  const loadMonthly = async () => {
+    if (!filters.month) return;
+    setLoading(true);
+    try {
+      const d = await api.get(`/reports/monthly-summary?month=${filters.month}`);
+      setData({ type: 'monthly', ...d });
+    } catch { setData(null); } finally { setLoading(false); }
+  };
+
+  const loadCC = async () => {
+    if (!filters.ccCode) return;
+    setLoading(true);
+    try {
+      const d = await api.get(`/reports/cost-center/${filters.ccCode}`);
+      setData({ type: 'cc', ...d });
+    } catch { setData(null); } finally { setLoading(false); }
+  };
+
+  const loadLine = async () => {
+    if (!filters.lineNumber) return;
+    setLoading(true);
+    try {
+      const d = await api.get(`/reports/line/${filters.lineNumber.replace(/\D/g, '')}`);
+      setData({ type: 'line', ...d });
+    } catch { setData(null); } finally { setLoading(false); }
+  };
+
+  const loadComparison = async () => {
+    if (!filters.month || !filters.month2) return;
+    setLoading(true);
+    try {
+      const d = await api.get(`/reports/comparison?month1=${filters.month}&month2=${filters.month2}`);
+      setData({ type: 'comparison', ...d });
+    } catch { setData(null); } finally { setLoading(false); }
+  };
+
+  const TABS = [
+    { id: 'monthly', label: '📅 Resumo Mensal' },
+    { id: 'cc', label: '🏢 Por Centro de Custo' },
+    { id: 'line', label: '📱 Por Linha' },
+    { id: 'comparison', label: '⚖ Comparação' },
+  ];
+
+  return React.createElement('div', { className: 'page' },
+    React.createElement('div', { className: 'flex-between mb-24' },
+      React.createElement('div', null,
+        React.createElement('h2', { style: { fontSize: 18, fontWeight: 700 } }, 'Relatórios'),
+        React.createElement('p', { className: 'text-muted mt-4' }, 'Consultas detalhadas e comparações históricas')
+      )
+    ),
+
+    // Tabs
+    React.createElement('div', { className: 'tabs mb-24' },
+      TABS.map(t =>
+        React.createElement('button', {
+          key: t.id,
+          className: `tab-btn${tab === t.id ? ' active' : ''}`,
+          onClick: () => { setTab(t.id); setData(null); }
+        }, t.label)
+      )
+    ),
+
+    // Filtros por aba
+    React.createElement('div', { className: 'card mb-16' },
+      tab === 'monthly' && React.createElement('div', { style: { display: 'flex', gap: 12, alignItems: 'flex-end' } },
+        React.createElement('div', { className: 'form-group', style: { marginBottom: 0 } },
+          React.createElement('label', null, 'Mês de referência'),
+          React.createElement('input', {
+            type: 'month', className: 'input',
+            value: filters.month,
+            onChange: e => setFilters(f => ({ ...f, month: e.target.value }))
+          })
+        ),
+        React.createElement('button', { className: 'btn btn-primary', onClick: loadMonthly }, 'Buscar')
+      ),
+
+      tab === 'cc' && React.createElement('div', { style: { display: 'flex', gap: 12, alignItems: 'flex-end' } },
+        React.createElement('div', { className: 'form-group', style: { marginBottom: 0 } },
+          React.createElement('label', null, 'Código do Centro de Custo'),
+          React.createElement('input', {
+            type: 'text', className: 'input', placeholder: 'ex: 1001',
+            value: filters.ccCode,
+            onChange: e => setFilters(f => ({ ...f, ccCode: e.target.value }))
+          })
+        ),
+        React.createElement('button', { className: 'btn btn-primary', onClick: loadCC }, 'Buscar')
+      ),
+
+      tab === 'line' && React.createElement('div', { style: { display: 'flex', gap: 12, alignItems: 'flex-end' } },
+        React.createElement('div', { className: 'form-group', style: { marginBottom: 0 } },
+          React.createElement('label', null, 'Número da linha'),
+          React.createElement('input', {
+            type: 'text', className: 'input', placeholder: 'ex: 11987654321',
+            value: filters.lineNumber,
+            onChange: e => setFilters(f => ({ ...f, lineNumber: e.target.value }))
+          })
+        ),
+        React.createElement('button', { className: 'btn btn-primary', onClick: loadLine }, 'Buscar')
+      ),
+
+      tab === 'comparison' && React.createElement('div', { style: { display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' } },
+        React.createElement('div', { className: 'form-group', style: { marginBottom: 0 } },
+          React.createElement('label', null, 'Mês 1'),
+          React.createElement('input', {
+            type: 'month', className: 'input',
+            value: filters.month,
+            onChange: e => setFilters(f => ({ ...f, month: e.target.value }))
+          })
+        ),
+        React.createElement('div', { className: 'form-group', style: { marginBottom: 0 } },
+          React.createElement('label', null, 'Mês 2'),
+          React.createElement('input', {
+            type: 'month', className: 'input',
+            value: filters.month2,
+            onChange: e => setFilters(f => ({ ...f, month2: e.target.value }))
+          })
+        ),
+        React.createElement('button', { className: 'btn btn-primary', onClick: loadComparison }, 'Comparar')
+      )
+    ),
+
+    // Resultados
+    loading ? React.createElement(Spinner) :
+    !data ? React.createElement('div', { className: 'card empty-state' },
+      React.createElement('h3', null, 'Informe os filtros e clique em Buscar'),
+      React.createElement('p', null, 'Os resultados serão exibidos aqui')
+    ) :
+
+    data.type === 'monthly' && React.createElement('div', null,
+      React.createElement('div', { className: 'kpi-grid mb-24' },
+        React.createElement('div', { className: 'kpi-card' },
+          React.createElement('div', { className: 'kpi-label' }, 'Total do Mês'),
+          React.createElement('div', { className: 'kpi-value' }, fmt.currency(data.totalAmount || 0))
+        ),
+        React.createElement('div', { className: 'kpi-card' },
+          React.createElement('div', { className: 'kpi-label' }, 'Total Rateado'),
+          React.createElement('div', { className: 'kpi-value', style: { color: 'var(--success)' } },
+            fmt.currency(data.allocatedAmount || 0))
+        ),
+        React.createElement('div', { className: 'kpi-card' },
+          React.createElement('div', { className: 'kpi-label' }, 'Linhas ativas'),
+          React.createElement('div', { className: 'kpi-value' }, data.totalLines || 0)
+        ),
+        React.createElement('div', { className: 'kpi-card' },
+          React.createElement('div', { className: 'kpi-label' }, 'Centros de custo'),
+          React.createElement('div', { className: 'kpi-value' }, data.costCenters?.length || 0)
+        )
+      ),
+      data.costCenters?.length > 0 && React.createElement('div', { className: 'card' },
+        React.createElement('div', { style: { fontWeight: 600, marginBottom: 12 } }, 'Rateio por Centro de Custo'),
+        React.createElement('table', { className: 'table' },
+          React.createElement('thead', null,
+            React.createElement('tr', null,
+              ['CC', 'Nome', 'Qtd Linhas', 'Valor Direto', 'Rateado', 'Total'].map(h =>
+                React.createElement('th', { key: h }, h)
+              )
+            )
+          ),
+          React.createElement('tbody', null,
+            data.costCenters.map((cc, i) =>
+              React.createElement('tr', { key: i },
+                React.createElement('td', null, React.createElement('code', null, cc.code)),
+                React.createElement('td', null, cc.name),
+                React.createElement('td', null, cc.lineCount || 0),
+                React.createElement('td', null, fmt.currency(cc.directAmount || 0)),
+                React.createElement('td', null, fmt.currency(cc.allocatedAmount || 0)),
+                React.createElement('td', { style: { fontWeight: 600 } }, fmt.currency(cc.totalAmount || 0))
+              )
+            )
+          )
+        )
+      )
+    ),
+
+    data.type === 'cc' && React.createElement('div', null,
+      React.createElement('div', { className: 'card mb-16' },
+        React.createElement('h3', { style: { fontWeight: 700, marginBottom: 4 } }, data.costCenter?.name || 'CC não encontrado'),
+        React.createElement('p', { className: 'text-muted' }, `Código: ${data.costCenter?.code}`),
+        data.history?.length > 0 && React.createElement('div', { style: { marginTop: 16 } },
+          React.createElement('div', { style: { fontWeight: 600, marginBottom: 8 } }, 'Histórico mensal'),
+          React.createElement('table', { className: 'table' },
+            React.createElement('thead', null,
+              React.createElement('tr', null,
+                ['Mês', 'Linhas', 'Valor Direto', 'Rateado', 'Total'].map(h =>
+                  React.createElement('th', { key: h }, h)
+                )
+              )
+            ),
+            React.createElement('tbody', null,
+              (data.history || []).map((h, i) =>
+                React.createElement('tr', { key: i },
+                  React.createElement('td', null, fmt.month(h.month)),
+                  React.createElement('td', null, h.lineCount || 0),
+                  React.createElement('td', null, fmt.currency(h.directAmount || 0)),
+                  React.createElement('td', null, fmt.currency(h.allocatedAmount || 0)),
+                  React.createElement('td', { style: { fontWeight: 600 } }, fmt.currency(h.totalAmount || 0))
+                )
+              )
+            )
+          )
+        )
+      )
+    ),
+
+    data.type === 'line' && React.createElement('div', null,
+      React.createElement('div', { className: 'card mb-16' },
+        React.createElement('h3', { style: { fontWeight: 700, marginBottom: 4 } },
+          React.createElement('code', null, fmt.phone(data.lineNumber || '')),
+        ),
+        data.history?.length > 0 && React.createElement('div', { style: { marginTop: 16 } },
+          React.createElement('div', { style: { fontWeight: 600, marginBottom: 8 } }, 'Histórico da linha'),
+          React.createElement('table', { className: 'table' },
+            React.createElement('thead', null,
+              React.createElement('tr', null,
+                ['Mês', 'Funcionário', 'Centro de Custo', 'Valor', 'Plano'].map(h =>
+                  React.createElement('th', { key: h }, h)
+                )
+              )
+            ),
+            React.createElement('tbody', null,
+              (data.history || []).map((h, i) =>
+                React.createElement('tr', { key: i },
+                  React.createElement('td', null, fmt.month(h.month)),
+                  React.createElement('td', null, h.employee || '—'),
+                  React.createElement('td', null, h.costCenter
+                    ? React.createElement('span', { className: 'badge badge-info' }, h.costCenter)
+                    : React.createElement('span', { className: 'text-muted' }, 'Sem CC')
+                  ),
+                  React.createElement('td', null, fmt.currency(h.amount || 0)),
+                  React.createElement('td', { className: 'text-muted', style: { fontSize: 12 } }, h.planName || '—')
+                )
+              )
+            )
+          )
+        )
+      )
+    ),
+
+    data.type === 'comparison' && React.createElement('div', null,
+      React.createElement('div', { className: 'card mb-16' },
+        React.createElement('h3', { style: { fontWeight: 600, marginBottom: 16 } },
+          `Comparação: ${fmt.month(filters.month + '-01')} × ${fmt.month(filters.month2 + '-01')}`
+        ),
+        React.createElement('div', { className: 'kpi-grid mb-16' },
+          React.createElement('div', { className: 'kpi-card' },
+            React.createElement('div', { className: 'kpi-label' }, `Total ${fmt.month(filters.month + '-01')}`),
+            React.createElement('div', { className: 'kpi-value' }, fmt.currency(data.month1Total || 0))
+          ),
+          React.createElement('div', { className: 'kpi-card' },
+            React.createElement('div', { className: 'kpi-label' }, `Total ${fmt.month(filters.month2 + '-01')}`),
+            React.createElement('div', { className: 'kpi-value' }, fmt.currency(data.month2Total || 0))
+          ),
+          React.createElement('div', { className: 'kpi-card' },
+            React.createElement('div', { className: 'kpi-label' }, 'Variação'),
+            React.createElement('div', {
+              className: 'kpi-value',
+              style: { color: (data.month2Total - data.month1Total) >= 0 ? 'var(--danger)' : 'var(--success)' }
+            }, `${((data.month2Total - data.month1Total) / (data.month1Total || 1) * 100).toFixed(1)}%`)
+          )
+        ),
+        data.byCostCenter?.length > 0 && React.createElement('table', { className: 'table' },
+          React.createElement('thead', null,
+            React.createElement('tr', null,
+              ['Centro de Custo', `${fmt.month(filters.month + '-01')}`, `${fmt.month(filters.month2 + '-01')}`, 'Variação', '∆%'].map(h =>
+                React.createElement('th', { key: h }, h)
+              )
+            )
+          ),
+          React.createElement('tbody', null,
+            data.byCostCenter.map((row, i) => {
+              const delta = (row.month2 || 0) - (row.month1 || 0);
+              const pct = row.month1 ? (delta / row.month1 * 100) : 0;
+              return React.createElement('tr', { key: i },
+                React.createElement('td', null,
+                  React.createElement('div', { style: { fontWeight: 500 } }, row.name),
+                  React.createElement('small', { className: 'text-muted' }, row.code)
+                ),
+                React.createElement('td', null, fmt.currency(row.month1 || 0)),
+                React.createElement('td', null, fmt.currency(row.month2 || 0)),
+                React.createElement('td', {
+                  style: { color: delta >= 0 ? 'var(--danger)' : 'var(--success)', fontWeight: 600 }
+                }, `${delta >= 0 ? '+' : ''}${fmt.currency(delta)}`),
+                React.createElement('td', {
+                  style: { color: pct >= 0 ? 'var(--danger)' : 'var(--success)' }
+                }, `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%`)
+              );
+            })
+          )
+        )
+      )
+    )
+  );
+}
+
+// ===== LINES PAGE =====
+function LinesPage() {
+  const [lines, setLines] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [selected, setSelected] = useState(null);
+  const [lineDetail, setLineDetail] = useState(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+
+  useEffect(() => {
+    // Busca linhas a partir do dashboard / endpoint de linhas
+    api.get('/reports/dashboard').then(d => {
+      // Montar lista de linhas do vw_allocation_dashboard ou fallback
+      const ls = d.topCostCenters || [];
+      setLines(ls);
+    }).catch(() => {}).finally(() => setLoading(false));
+  }, []);
+
+  const loadLineDetail = (number) => {
+    setSelected(number);
+    setLoadingDetail(true);
+    api.get(`/reports/line/${number.replace(/\D/g, '')}`)
+      .then(d => setLineDetail(d))
+      .catch(() => setLineDetail(null))
+      .finally(() => setLoadingDetail(false));
+  };
+
+  const filtered = lines.filter(l =>
+    !search || JSON.stringify(l).toLowerCase().includes(search.toLowerCase())
+  );
+
+  return React.createElement('div', { className: 'page' },
+    React.createElement('div', { className: 'flex-between mb-24' },
+      React.createElement('div', null,
+        React.createElement('h2', { style: { fontSize: 18, fontWeight: 700 } }, 'Gestão de Linhas'),
+        React.createElement('p', { className: 'text-muted mt-4' }, 'Histórico e status de cada linha telefônica')
+      )
+    ),
+
+    React.createElement('div', { className: 'card mb-16' },
+      React.createElement('input', {
+        type: 'search', className: 'input', placeholder: '🔍 Buscar por número, funcionário ou centro de custo…',
+        value: search, onChange: e => setSearch(e.target.value),
+        style: { maxWidth: 400 }
+      })
+    ),
+
+    loading ? React.createElement(Spinner) :
+    lines.length === 0
+      ? React.createElement('div', { className: 'card empty-state' },
+          React.createElement('h3', null, 'Nenhuma linha encontrada'),
+          React.createElement('p', null, 'As linhas aparecerão aqui após a importação de arquivos Vivo')
+        )
+      : React.createElement('div', { style: { display: 'grid', gridTemplateColumns: '1fr 340px', gap: 16 } },
+          React.createElement('div', { className: 'card' },
+            React.createElement('div', { style: { fontWeight: 600, marginBottom: 12 } },
+              `${filtered.length} centro(s) de custo encontrado(s)`),
+            React.createElement('table', { className: 'table' },
+              React.createElement('thead', null,
+                React.createElement('tr', null,
+                  ['Centro de Custo', 'Linhas', 'Valor Total'].map(h =>
+                    React.createElement('th', { key: h }, h)
+                  )
+                )
+              ),
+              React.createElement('tbody', null,
+                filtered.map((cc, i) =>
+                  React.createElement('tr', { key: i },
+                    React.createElement('td', null,
+                      React.createElement('div', { style: { fontWeight: 500 } }, cc.name || cc.cost_center_name),
+                      React.createElement('small', { className: 'text-muted' }, cc.code || cc.cost_center_code)
+                    ),
+                    React.createElement('td', null, cc.lineCount || cc.line_count || 0),
+                    React.createElement('td', null, fmt.currency(cc.totalAmount || cc.total_amount || 0))
+                  )
+                )
+              )
+            )
+          ),
+
+          selected && React.createElement('div', { className: 'card' },
+            React.createElement('div', { style: { fontWeight: 600, marginBottom: 8 } }, 'Detalhes da Linha'),
+            loadingDetail ? React.createElement(Spinner) :
+            !lineDetail ? React.createElement('p', { className: 'text-muted' }, 'Selecione uma linha') :
+            React.createElement('div', null,
+              React.createElement('p', null, `Histórico de ${lineDetail.history?.length || 0} meses`)
+            )
+          )
+        )
+  );
+}
+
+// ===== SIMULATION PAGE =====
+function SimulationPage() {
+  const [accounts, setAccounts] = useState([]);
+  const [selectedId, setSelectedId] = useState('');
+  const [simResult, setSimResult] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    api.get('/allocations').then(d => {
+      const pending = (d.accounts || []).filter(a => ['imported','processing','reviewing'].includes(a.status));
+      setAccounts(pending);
+    });
+  }, []);
+
+  const simulate = async () => {
+    if (!selectedId) return toast('Selecione uma conta', 'error');
+    setLoading(true);
+    setSimResult(null);
+    try {
+      const d = await api.post('/allocations/process', { accountId: selectedId, simulate: true });
+      setSimResult(d);
+      toast('Simulação concluída', 'success');
+    } catch (e) {
+      toast(e.message || 'Erro na simulação', 'error');
+    } finally { setLoading(false); }
+  };
+
+  const confirm = async () => {
+    if (!window.confirm('Confirmar o rateio? Esta ação processará os valores definitivamente.')) return;
+    setConfirming(true);
+    try {
+      await api.post('/allocations/process', { accountId: selectedId, simulate: false });
+      toast('Rateio processado com sucesso!', 'success');
+      setSimResult(null);
+      setSelectedId('');
+      api.get('/allocations').then(d => setAccounts((d.accounts || []).filter(a => ['imported','processing','reviewing'].includes(a.status))));
+    } catch (e) {
+      toast(e.message || 'Erro ao confirmar', 'error');
+    } finally { setConfirming(false); }
+  };
+
+  return React.createElement('div', { className: 'page' },
+    React.createElement('div', { className: 'flex-between mb-24' },
+      React.createElement('div', null,
+        React.createElement('h2', { style: { fontSize: 18, fontWeight: 700 } }, 'Simulação de Rateio'),
+        React.createElement('p', { className: 'text-muted mt-4' }, 'Prévia do rateio antes de confirmar os valores definitivos')
+      )
+    ),
+
+    React.createElement('div', { className: 'card mb-24' },
+      React.createElement('div', { style: { fontWeight: 600, marginBottom: 12 } }, 'Selecionar conta para simulação'),
+      React.createElement('div', { style: { display: 'flex', gap: 12, alignItems: 'flex-end' } },
+        React.createElement('div', { className: 'form-group', style: { marginBottom: 0, flex: 1 } },
+          React.createElement('select', {
+            className: 'input', value: selectedId,
+            onChange: e => { setSelectedId(e.target.value); setSimResult(null); }
+          },
+            React.createElement('option', { value: '' }, '— Selecione uma conta —'),
+            accounts.map(a =>
+              React.createElement('option', { key: a.id, value: a.id },
+                `Conta ${a.account_number} · ${fmt.month(a.reference_month)} · ${fmt.currency(a.total_amount)}`
+              )
+            )
+          )
+        ),
+        React.createElement('button', { className: 'btn btn-primary', onClick: simulate, disabled: loading || !selectedId },
+          loading ? '⏳ Simulando…' : '▶ Simular'
+        )
+      ),
+      accounts.length === 0 && React.createElement('p', { className: 'text-muted mt-16', style: { fontSize: 12 } },
+        'Nenhuma conta pendente de rateio. Importe arquivos Vivo primeiro.'
+      )
+    ),
+
+    loading && React.createElement('div', { className: 'card' }, React.createElement(Spinner)),
+
+    simResult && React.createElement('div', null,
+      // Aviso simulação
+      React.createElement('div', { style: {
+        background: '#fff7e6', border: '1px solid #f59e0b',
+        borderRadius: 8, padding: '12px 16px', marginBottom: 16,
+        display: 'flex', alignItems: 'center', gap: 8
+      } },
+        React.createElement('span', { style: { fontSize: 18 } }, '⚠'),
+        React.createElement('div', null,
+          React.createElement('strong', null, 'Resultado de simulação — não confirmado'),
+          React.createElement('p', { style: { fontSize: 12, color: '#92400e', marginTop: 2 } },
+            'Revise os valores abaixo. Clique em "Confirmar Rateio" apenas quando tudo estiver correto.')
+        )
+      ),
+
+      // KPIs da simulação
+      React.createElement('div', { className: 'kpi-grid mb-24' },
+        React.createElement('div', { className: 'kpi-card' },
+          React.createElement('div', { className: 'kpi-label' }, 'Total da Conta'),
+          React.createElement('div', { className: 'kpi-value' }, fmt.currency(simResult.totalAmount || 0))
+        ),
+        React.createElement('div', { className: 'kpi-card' },
+          React.createElement('div', { className: 'kpi-label' }, 'Total Rateado'),
+          React.createElement('div', { className: 'kpi-value', style: { color: 'var(--success)' } },
+            fmt.currency(simResult.totalAllocated || 0))
+        ),
+        React.createElement('div', { className: 'kpi-card' },
+          React.createElement('div', { className: 'kpi-label' }, 'Diferença'),
+          React.createElement('div', {
+            className: 'kpi-value',
+            style: { color: Math.abs(simResult.difference || 0) < 0.01 ? 'var(--success)' : 'var(--warning)' }
+          }, fmt.currency(simResult.difference || 0))
+        ),
+        React.createElement('div', { className: 'kpi-card' },
+          React.createElement('div', { className: 'kpi-label' }, 'Centros de Custo'),
+          React.createElement('div', { className: 'kpi-value' }, simResult.items?.length || 0)
+        )
+      ),
+
+      // Tabela do rateio simulado
+      simResult.items?.length > 0 && React.createElement('div', { className: 'card mb-16' },
+        React.createElement('div', { style: { fontWeight: 600, marginBottom: 12 } }, 'Rateio por Centro de Custo'),
+        React.createElement('table', { className: 'table' },
+          React.createElement('thead', null,
+            React.createElement('tr', null,
+              ['Centro de Custo', 'Linhas', 'Direto', 'Rateado', 'Total', '%'].map(h =>
+                React.createElement('th', { key: h }, h)
+              )
+            )
+          ),
+          React.createElement('tbody', null,
+            simResult.items.map((item, i) => {
+              const pct = simResult.totalAllocated
+                ? ((item.totalAmount / simResult.totalAllocated) * 100).toFixed(1)
+                : '0.0';
+              return React.createElement('tr', { key: i },
+                React.createElement('td', null,
+                  React.createElement('div', { style: { fontWeight: 500 } }, item.costCenterName || item.cost_center_name),
+                  React.createElement('small', { className: 'text-muted' }, item.costCenterCode || item.cost_center_code)
+                ),
+                React.createElement('td', null, item.lineCount || 0),
+                React.createElement('td', null, fmt.currency(item.directAmount || 0)),
+                React.createElement('td', null, fmt.currency(item.allocatedAmount || 0)),
+                React.createElement('td', { style: { fontWeight: 700, color: 'var(--brand-primary)' } },
+                  fmt.currency(item.totalAmount || 0)
+                ),
+                React.createElement('td', null,
+                  React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: 6 } },
+                    React.createElement('div', {
+                      style: {
+                        width: 60, height: 6, borderRadius: 3,
+                        background: 'var(--surface-3)', overflow: 'hidden'
+                      }
+                    },
+                      React.createElement('div', {
+                        style: {
+                          width: `${Math.min(100, parseFloat(pct))}%`,
+                          height: '100%',
+                          background: 'var(--brand-primary)',
+                          borderRadius: 3,
+                        }
+                      })
+                    ),
+                    React.createElement('span', { style: { fontSize: 12 } }, `${pct}%`)
+                  )
+                )
+              );
+            })
+          )
+        )
+      ),
+
+      // Linhas sem CC
+      simResult.unallocatedLines?.length > 0 && React.createElement('div', { className: 'card mb-16' },
+        React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 } },
+          React.createElement('span', { className: 'badge badge-warning' }, '⚠ Linhas sem Centro de Custo'),
+          React.createElement('span', { className: 'text-muted', style: { fontSize: 12 } },
+            `${simResult.unallocatedLines.length} linha(s) — serão rateadas pelas regras configuradas`)
+        ),
+        React.createElement('table', { className: 'table' },
+          React.createElement('thead', null,
+            React.createElement('tr', null,
+              ['Telefone', 'Valor'].map(h => React.createElement('th', { key: h }, h))
+            )
+          ),
+          React.createElement('tbody', null,
+            simResult.unallocatedLines.map((l, i) =>
+              React.createElement('tr', { key: i },
+                React.createElement('td', null, React.createElement('code', null, fmt.phone(l.number || l.line_number))),
+                React.createElement('td', null, fmt.currency(l.amount || 0))
+              )
+            )
+          )
+        )
+      ),
+
+      // Botão confirmar
+      React.createElement('div', { style: { display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 8 } },
+        React.createElement('button', {
+          className: 'btn btn-ghost',
+          onClick: () => { setSimResult(null); setSelectedId(''); }
+        }, 'Cancelar'),
+        React.createElement('button', {
+          className: 'btn btn-primary',
+          onClick: confirm,
+          disabled: confirming,
+          style: { background: 'var(--success)' }
+        }, confirming ? '⏳ Confirmando…' : '✓ Confirmar Rateio')
+      )
+    )
+  );
+}
+
+// ===== NAVIGATION =====
+const PAGES = {
+  dashboard:      { label: 'Dashboard',          emoji: '📊', component: DashboardPage },
+  import:         { label: 'Importação',          emoji: '📤', component: ImportPage },
+  simulation:     { label: 'Simulação',           emoji: '🧮', component: SimulationPage },
+  allocations:    { label: 'Rateio',              emoji: '⚡', component: AllocationsPage },
+  reconciliation: { label: 'Conferência',         emoji: '🔎', component: ReconciliationPage },
+  reports:        { label: 'Relatórios',          emoji: '📈', component: ReportsPage },
+  lines:          { label: 'Linhas',              emoji: '📱', component: LinesPage },
+  costcenters:    { label: 'Centros de Custo',    emoji: '🏢', component: CostCentersPage },
+  rules:          { label: 'Regras de Rateio',    emoji: '⚙',  component: RulesPage },
+  users:          { label: 'Usuários',            emoji: '👥', component: UsersPage },
+  audit:          { label: 'Auditoria',           emoji: '🔍', component: AuditPage },
+};
+
+const NAV_SECTIONS = [
+  { label: 'Principal',     items: ['dashboard', 'import'] },
+  { label: 'Rateio',        items: ['simulation', 'allocations', 'reconciliation'] },
+  { label: 'Análise',       items: ['reports', 'lines'] },
+  { label: 'Configuração',  items: ['costcenters', 'rules', 'users'] },
+  { label: 'Controle',      items: ['audit'] },
+];
+
+function App() {
+  const { user, logout, loading } = useAuth();
+  const [page, setPage] = useState('dashboard');
+
+  if (loading) return React.createElement('div', {
+    style: { display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }
+  }, React.createElement(Spinner));
+
+  if (!user) return React.createElement(LoginPage);
+
+  const CurrentPage = PAGES[page]?.component || DashboardPage;
+
+  return React.createElement('div', { className: 'app' },
+    // Sidebar
+    React.createElement('nav', { className: 'sidebar' },
+      React.createElement('div', { className: 'sidebar-logo' },
+        React.createElement('h1', null, 'Vivo Rateio'),
+        React.createElement('span', null, 'Contas Corporativas'),
+        React.createElement('div', { className: 'vivo-badge' }, 'VIVO')
+      ),
+      React.createElement('div', { className: 'sidebar-nav' },
+        NAV_SECTIONS.map(section =>
+          React.createElement('div', { key: section.label },
+            React.createElement('div', { className: 'nav-section' }, section.label),
+            section.items.map(key => {
+              const item = PAGES[key];
+              return React.createElement('div', {
+                key,
+                className: `nav-item ${page === key ? 'active' : ''}`,
+                onClick: () => setPage(key),
+              }, item.emoji, ' ', item.label);
+            })
+          )
+        )
+      ),
+      React.createElement('div', { className: 'sidebar-footer' },
+        React.createElement('div', { className: 'user-pill' },
+          React.createElement('div', { className: 'user-avatar' }, user.name[0].toUpperCase()),
+          React.createElement('div', { className: 'user-info' },
+            React.createElement('div', null, user.name.split(' ')[0]),
+            React.createElement('small', null, user.role)
+          ),
+          React.createElement('button', { className: 'logout-btn', onClick: logout, title: 'Sair' }, '⏻')
+        )
+      )
+    ),
+
+    // Main
+    React.createElement('main', { className: 'main' },
+      React.createElement('div', { className: 'topbar' },
+        React.createElement('h2', null, `${PAGES[page]?.emoji} ${PAGES[page]?.label}`),
+        React.createElement('div', { className: 'topbar-actions' },
+          React.createElement('span', { className: 'text-muted', style: { fontSize: 12 } },
+            `Olá, ${user.name.split(' ')[0]}`
+          )
+        )
+      ),
+      React.createElement(CurrentPage)
+    )
+  );
+}
+
+// Bootstrap
+ReactDOM.createRoot(document.getElementById('root')).render(
+  React.createElement(AuthProvider, null, React.createElement(App))
+);
+</script>
+</body>
+</html>
