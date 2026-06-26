@@ -59,7 +59,7 @@ async function processAllocation(vivoAccountId, options = {}) {
       );
       if (latestGoc.rows.length > 0) {
         gocMonth = latestGoc.rows[0].reference_month;
-        logger.warn(\`GOC não encontrado para \${account.reference_month}, usando \${gocMonth}\`);
+        logger.warn('GOC não encontrado para ' + account.reference_month + ', usando ' + gocMonth);
       }
     }
 
