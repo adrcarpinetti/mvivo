@@ -131,9 +131,10 @@ async function parseVivoFile(fileBuffer, fileName) {
         // Parcelas reais de aparelho aparecem como 190D com valor alto
 
         // ── consumo (510T = total de consumo por linha) ───────────────
-        if (segment.startsWith('510T') && isPhone(phone)) {
+        // Só captura 510T 001 (total), não 510D (detalhes individuais)
+        if (segment === '510T  001' && isPhone(phone)) {
           const v = parseMonetary(valStr);
-          if (v !== null && v > 0) {
+          if (v !== null && v > 0 && v < 5000) { // sanity check
             ensureLine(lineMap, phone, subscr);
             result.rawItems.push({
               lineNumber: phone, subscriptionCode: subscr || null,
@@ -143,10 +144,18 @@ async function parseVivoFile(fileBuffer, fileName) {
           }
         }
 
-        // ── desconto / multa / ajuste (162D, 164A) ───────────────────
+        // ── desconto / multa / ajuste (162D, 164A, 162T) ───────────────
+        // Esses segmentos podem ter valor em posição 165-195 OU 180-210
         if ((segment === '162D' || segment === '164A' || segment === '162T') && !isPhone(phone)) {
-          const v = parseMonetary(valStr);
-          if (v !== null && v !== 0) {
+          let v = parseMonetary(valStr); // posição 165-195
+          if (v === null || Math.abs(v) > 50000) {
+            // Tentar posição alternativa 180-210
+            const altVal = row.length > 195 ? row.substring(180, 210).trim() : '';
+            const v2 = parseMonetary(altVal);
+            if (v2 !== null && Math.abs(v2) <= 50000) v = v2;
+            else v = null; // valor absurdo, ignorar
+          }
+          if (v !== null && v !== 0 && Math.abs(v) <= 50000) {
             result.rawItems.push({
               lineNumber: null, subscriptionCode: null,
               segmentCode: segment, category: 'adjustment',
