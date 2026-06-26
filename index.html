@@ -1071,6 +1071,19 @@ function DashboardPage() {
   const monthly = data?.monthlyEvolution || [];
   const topCC = data?.topCostCenters || [];
 
+  const aggKpis = React.useMemo(() => {
+    const base = kpis || {};
+    const fromMonthly = {
+      total_invoice:    monthly.reduce((s, m) => s + parseFloat(m.invoice_total || 0), 0),
+      total_allocated:  monthly.reduce((s, m) => s + parseFloat(m.allocated_total || 0), 0),
+      total_lines:      monthly.reduce((s, m) => s + parseInt(m.total_lines || 0), 0),
+      lines_with_cc:    monthly.reduce((s, m) => s + parseInt(m.total_lines || 0), 0),
+      lines_without_cc: monthly.reduce((s, m) => s + parseInt(m.lines_without_cc || 0), 0),
+    };
+    const useMonthly = fromMonthly.total_invoice > parseFloat(base.total_invoice || 0);
+    return useMonthly ? fromMonthly : base;
+  }, [kpis, monthly]);
+
   const COLORS = ['#1a1f6e','#c900a1','#6e1a7e','#2563eb','#059669','#d97706','#dc2626','#8b5cf6'];
 
   return React.createElement('div', { className: 'page' },
@@ -1078,24 +1091,24 @@ function DashboardPage() {
     React.createElement('div', { className: 'kpi-grid' },
       React.createElement('div', { className: 'kpi-card kpi-card-accent' },
         React.createElement('div', { className: 'kpi-label' }, 'Total Faturado (Mês)'),
-        React.createElement('div', { className: 'kpi-value currency-value' }, fmt.currency(kpis.total_invoice)),
+        React.createElement('div', { className: 'kpi-value currency-value' }, fmt.currency(aggKpis.total_invoice)),
         React.createElement('div', { className: 'kpi-sub' }, 'Valor total da conta Vivo')
       ),
       React.createElement('div', { className: 'kpi-card kpi-card-success' },
         React.createElement('div', { className: 'kpi-label' }, 'Total Rateado'),
-        React.createElement('div', { className: 'kpi-value currency-value' }, fmt.currency(kpis.total_allocated)),
+        React.createElement('div', { className: 'kpi-value currency-value' }, fmt.currency(aggKpis.total_allocated)),
         React.createElement('div', { className: 'kpi-sub' }, 'Distribuído por CC')
       ),
       React.createElement('div', { className: 'kpi-card kpi-card-info' },
         React.createElement('div', { className: 'kpi-label' }, 'Total de Linhas'),
-        React.createElement('div', { className: 'kpi-value' }, fmt.number(kpis.total_lines || 0)),
+        React.createElement('div', { className: 'kpi-value' }, fmt.number(aggKpis.total_lines || 0)),
         React.createElement('div', { className: 'kpi-sub' },
-          `${kpis.lines_with_cc || 0} com CC • ${kpis.lines_without_cc || 0} sem CC`
+          `${aggKpis.lines_with_cc || 0} com CC • ${aggKpis.lines_without_cc || 0} sem CC`
         )
       ),
       React.createElement('div', { className: 'kpi-card kpi-card-warning' },
         React.createElement('div', { className: 'kpi-label' }, 'Linhas sem CC'),
-        React.createElement('div', { className: 'kpi-value text-warning' }, fmt.number(kpis.lines_without_cc || 0)),
+        React.createElement('div', { className: 'kpi-value text-warning' }, fmt.number(aggKpis.lines_without_cc || 0)),
         React.createElement('div', { className: 'kpi-sub' }, 'Requerem atenção')
       ),
     ),
@@ -1134,22 +1147,24 @@ function DashboardPage() {
           React.createElement('div', { className: 'card-title' }, 'Top Centros de Custo')
         ),
         topCC.length > 0
-          ? React.createElement(ResponsiveContainer, { width: '100%', height: 220 },
-              React.createElement(PieChart, null,
-                React.createElement(Pie, {
-                  data: topCC.slice(0,8), cx: '45%', cy: '50%',
-                  outerRadius: 80, dataKey: 'total_amount',
-                  nameKey: 'code',
-                  label: ({ code, percent }) => `${code} ${(percent*100).toFixed(0)}%`,
-                  labelLine: false,
-                  fontSize: 10,
-                },
-                  ...topCC.slice(0,8).map((_, i) =>
-                    React.createElement(Cell, { key: i, fill: COLORS[i % COLORS.length] })
-                  )
-                ),
-                React.createElement(Tooltip, { formatter: v => [fmt.currency(v)] })
-              )
+          ? React.createElement('div', { style: { overflowY: 'auto', maxHeight: 220, paddingTop: 4 } },
+              (() => {
+                const total = topCC.reduce((s, c) => s + parseFloat(c.total_amount || 0), 0);
+                return topCC.slice(0, 8).map((cc, i) => {
+                  const pct = total > 0 ? (parseFloat(cc.total_amount || 0) / total * 100).toFixed(1) : 0;
+                  return React.createElement('div', { key: i, style: { marginBottom: 10 } },
+                    React.createElement('div', { style: { display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 3 } },
+                      React.createElement('span', { style: { fontWeight: 500, maxWidth: '65%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } },
+                        cc.name || cc.code),
+                      React.createElement('span', { style: { color: 'var(--text-muted)', fontSize: 11 } },
+                        fmt.currency(parseFloat(cc.total_amount || 0)))
+                    ),
+                    React.createElement('div', { style: { height: 6, background: 'var(--surface-3)', borderRadius: 3, overflow: 'hidden' } },
+                      React.createElement('div', { style: { width: pct + '%', height: '100%', borderRadius: 3, background: COLORS[i % COLORS.length] }})
+                    )
+                  );
+                });
+              })()
             )
           : React.createElement('div', { className: 'empty-state' },
               React.createElement('p', null, 'Processe um rateio para ver os dados')
