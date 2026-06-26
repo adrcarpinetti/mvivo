@@ -279,6 +279,20 @@ async function processAllocation(vivoAccountId, options = {}) {
       `, [userId, vivoAccountId.toString(), `Rateio processado para ${account.reference_month}`]);
     }
 
+    // Ajuste final: se total rateado > total fatura, reduzir proporcionalmente
+    const invoiceTotal = parseFloat(account.total_amount || 0);
+    if (invoiceTotal > 0 && allocationResult.totalAmount > invoiceTotal + 0.01) {
+      const ratio = invoiceTotal / allocationResult.totalAmount;
+      logger.info('Adjusting allocation by ratio ' + ratio.toFixed(4) + ' to match invoice total ' + invoiceTotal);
+      for (const item of allocationResult.items) {
+        item.directAmount    = parseFloat((item.directAmount    * ratio).toFixed(2));
+        item.allocatedAmount = parseFloat((item.allocatedAmount * ratio).toFixed(2));
+        item.totalAmount     = parseFloat((item.totalAmount     * ratio).toFixed(2));
+      }
+      allocationResult.totalAmount = invoiceTotal;
+      allocationResult.totalAllocatedAmount = invoiceTotal;
+    }
+
     logger.info('Allocation complete: totalAmount=' + allocationResult.totalAmount + ' items=' + allocationResult.items.length);
     return allocationResult;
     } catch(innerErr) {
