@@ -1238,7 +1238,7 @@ function DashboardPage() {
             (data?.recentAccounts || []).map(acc =>
               React.createElement('tr', { key: acc.id },
                 React.createElement('td', { className: 'td-mono' }, acc.account_number),
-                React.createElement('td', null, acc.company_name || '-'),
+                React.createElement('td', { style: { fontSize: 12, maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, acc.company_name || React.createElement('span', { className: 'text-muted' }, '-')),
                 React.createElement('td', null, fmt.month(acc.reference_month?.slice(0,7))),
                 React.createElement('td', { className: 'td-num' }, fmt.currency(acc.total_amount)),
                 React.createElement('td', null, React.createElement(StatusBadge, { status: acc.status })),
@@ -1830,7 +1830,10 @@ function AllocationsPage() {
                       acc.due_date
                         ? React.createElement('span', {
                             style: { color: acc.due_date.substring(0,10) < new Date().toISOString().substring(0,10) ? '#dc2626' : 'var(--text-primary)' }
-                          }, new Date(acc.due_date + 'T12:00:00').toLocaleDateString('pt-BR'))
+                          }, (() => {
+                            const d = acc.due_date.substring(0,10).split('-');
+                            return d.length === 3 ? d[2] + '/' + d[1] + '/' + d[0] : acc.due_date;
+                          })())
                         : React.createElement('span', { style: { color: 'var(--text-muted)', fontSize: 11 } }, '+ add')
                     ),
                     React.createElement('td', { className: 'td-num' }, fmt.currency(totalFatura)),
