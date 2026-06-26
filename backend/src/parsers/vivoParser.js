@@ -82,6 +82,26 @@ async function parseVivoFile(fileBuffer, fileName) {
           result.accountNumber = account;
         }
 
+        // ── nome da empresa (011D) ────────────────────────────────────
+        if (segment === '011D' && !isPhone(phone)) {
+          const nome = row.length > 165 ? row.substring(165, 240).trim() : '';
+          if (nome) result.companyName = nome;
+        }
+
+        // ── vencimento via boleto (020D) ─────────────────────────────
+        // Número do boleto Vivo contém MMAADD: ex 052622 = 22/05/2026
+        if (segment === '020D' && !isPhone(phone) && !result.dueDate) {
+          const bf = row.length > 230 ? row.substring(165, 230) : '';
+          const bm = bf.match(/(\d{2})(\d{2})(\d{2})\d{6}/);
+          if (bm) {
+            const bmm = parseInt(bm[1]), baa = parseInt(bm[2]), bdd = parseInt(bm[3]);
+            const byear = 2000 + baa;
+            if (bmm >= 1 && bmm <= 12 && bdd >= 1 && bdd <= 31) {
+              result.dueDate = byear + '-' + String(bmm).padStart(2,'0') + '-' + String(bdd).padStart(2,'0');
+            }
+          }
+        }
+
         // ── total geral da conta ──────────────────────────────────────
         if (segment === SEG_ACCOUNT_TOTAL) {
           const v = parseMonetary(valStr);

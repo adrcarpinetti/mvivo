@@ -74,11 +74,12 @@ router.post('/vivo', authenticate, requirePermission('import'),
       const accountRes = await client.query(`
         INSERT INTO vivo_accounts (
           account_number, reference_month, company_name,
-          total_amount, status, file_name, file_size, import_log_id
-        ) VALUES ($1, $2, $3, $4, 'imported', $5, $6, $7)
+          total_amount, due_date, status, file_name, file_size, import_log_id
+        ) VALUES ($1, $2, $3, $4, $5, 'imported', $6, $7, $8)
         ON CONFLICT (account_number, reference_month) DO UPDATE SET
-          company_name = EXCLUDED.company_name,
+          company_name = COALESCE(EXCLUDED.company_name, vivo_accounts.company_name),
           total_amount = EXCLUDED.total_amount,
+          due_date     = COALESCE(EXCLUDED.due_date, vivo_accounts.due_date),
           file_name = EXCLUDED.file_name,
           file_size = EXCLUDED.file_size,
           import_log_id = EXCLUDED.import_log_id,
@@ -90,6 +91,7 @@ router.post('/vivo', authenticate, requirePermission('import'),
         parsed.referenceMonth || refDate,
         parsed.companyName,
         parsed.totalAmount,
+        parsed.dueDate || null,
         file.originalname,
         file.size,
         logId,
