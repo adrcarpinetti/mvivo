@@ -1606,7 +1606,35 @@ function AllocationsPage() {
   const [modalId, setModalId] = useState(null);
   const [modalData, setModalData] = useState(null);
   const [closeModal, setCloseModal] = useState(null);
+  const [filterYear, setFilterYear] = useState('');
+  const [filterMonth, setFilterMonth] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
+  const [searchText, setSearchText] = useState('');
   const { show, ToastEl } = useToast();
+  const currentYear = new Date().getFullYear();
+
+  // Filtragem local das contas
+  const filtered = accounts.filter(a => {
+    const ref = a.reference_month?.substring(0, 7) || '';
+    if (filterYear && !ref.startsWith(filterYear)) return false;
+    if (filterMonth && !ref.endsWith('-' + filterMonth.padStart(2,'0'))) return false;
+    if (filterStatus) {
+      const st = a.allocation_status || a.status || '';
+      if (filterStatus === 'pending' && ['confirmed','closed'].includes(st)) return false;
+      if (filterStatus === 'confirmed' && st !== 'confirmed') return false;
+      if (filterStatus === 'closed' && st !== 'closed') return false;
+    }
+    if (searchText && !a.account_number?.includes(searchText)) return false;
+    return true;
+  });
+
+  // Anos e meses disponíveis
+  const availableYears = [...new Set(accounts.map(a => a.reference_month?.substring(0,4)).filter(Boolean))].sort().reverse();
+  const availableMonths = [...new Set(
+    accounts
+      .filter(a => !filterYear || a.reference_month?.startsWith(filterYear))
+      .map(a => a.reference_month?.substring(5,7)).filter(Boolean)
+  )].sort();
 
   useEffect(() => {
     loadData();
@@ -1649,6 +1677,50 @@ function AllocationsPage() {
         React.createElement('p', { className: 'text-muted mt-4' }, 'Processamento e conferência por conta')
       ),
       React.createElement('button', { className: 'btn btn-outline', onClick: loadData }, '↺ Atualizar')
+    ),
+
+    // Filtros
+    React.createElement('div', { className: 'card mb-12', style: { padding: '12px 16px' } },
+      React.createElement('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' } },
+        React.createElement('input', {
+          type: 'search', className: 'input', placeholder: '🔍 Número da conta…',
+          style: { width: 180 }, value: searchText,
+          onChange: e => setSearchText(e.target.value)
+        }),
+        React.createElement('select', {
+          className: 'input', style: { width: 90 }, value: filterYear,
+          onChange: e => { setFilterYear(e.target.value); setFilterMonth(''); }
+        },
+          React.createElement('option', { value: '' }, 'Todos anos'),
+          availableYears.map(y => React.createElement('option', { key: y, value: y }, y))
+        ),
+        React.createElement('select', {
+          className: 'input', style: { width: 140 }, value: filterMonth,
+          onChange: e => setFilterMonth(e.target.value)
+        },
+          React.createElement('option', { value: '' }, 'Todos os meses'),
+          availableMonths.map(m => {
+            const yr = filterYear || currentYear;
+            const label = new Date(`${yr}-${m}-15`).toLocaleDateString('pt-BR', { month: 'long' });
+            return React.createElement('option', { key: m, value: m }, label.charAt(0).toUpperCase() + label.slice(1));
+          })
+        ),
+        React.createElement('select', {
+          className: 'input', style: { width: 150 }, value: filterStatus,
+          onChange: e => setFilterStatus(e.target.value)
+        },
+          React.createElement('option', { value: '' }, 'Todos status'),
+          React.createElement('option', { value: 'pending' }, 'Pendentes'),
+          React.createElement('option', { value: 'confirmed' }, 'Confirmados'),
+          React.createElement('option', { value: 'closed' }, 'Fechados')
+        ),
+        (filterYear || filterMonth || filterStatus || searchText) && React.createElement('button', {
+          className: 'btn btn-ghost', style: { fontSize: 12 },
+          onClick: () => { setFilterYear(''); setFilterMonth(''); setFilterStatus(''); setSearchText(''); }
+        }, '✕ Limpar'),
+        React.createElement('span', { style: { fontSize: 12, color: 'var(--text-muted)', marginLeft: 4 } },
+          `${filtered.length} de ${accounts.length} conta(s)`)
+      )
     ),
 
     // Barra de ações em lote
@@ -1717,13 +1789,13 @@ function AllocationsPage() {
             )
           ),
           React.createElement('tbody', null,
-            accounts.length === 0
+            filtered.length === 0
               ? React.createElement('tr', null,
                   React.createElement('td', { colSpan: 9, style: { textAlign: 'center', padding: 32, color: 'var(--text-muted)' } },
                     'Nenhuma conta importada. Vá para Importação para adicionar arquivos.'
                   )
                 )
-              : accounts.map((acc, idx) => {
+              : filtered.map((acc, idx) => {
                   // Compatível com vivo_accounts E monthly_allocations
                   const totalFatura   = acc.total_amount || acc.total_invoice_amount || 0;
                   const totalRateado  = acc.total_allocated_amount || 0;
