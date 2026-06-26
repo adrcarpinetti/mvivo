@@ -58,25 +58,15 @@ async function processAllocation(vivoAccountId, options = {}) {
 
     logger.info('Step 2 OK: ' + itemsRes.rows.length + ' items');
 
-    // Busca cobranças extras e ajustes (não por linha) para incluir no rateio
+    // Busca cobranças extras (não por linha) para incluir no rateio
     const extrasRes = await client.query(`
-      SELECT
-        item_category,
-        COALESCE(SUM(amount), 0) AS total
+      SELECT COALESCE(SUM(amount), 0) AS extra_total
       FROM vivo_invoice_items
-      WHERE vivo_account_id = $1
-        AND item_category IN ('extra_charge', 'adjustment')
-      GROUP BY item_category
+      WHERE vivo_account_id = $1 AND item_category = 'extra_charge'
     `, [vivoAccountId]);
-    let extraTotal = 0;
-    let adjustTotal = 0;
-    for (const row of extrasRes.rows) {
-      if (row.item_category === 'extra_charge') extraTotal = parseFloat(row.total || 0);
-      if (row.item_category === 'adjustment')   adjustTotal = parseFloat(row.total || 0);
-    }
-    const netExtra = extraTotal + adjustTotal; // extras menos descontos
-    if (netExtra !== 0) {
-      logger.info('Extra/adj found: extra=' + extraTotal.toFixed(2) + ' adj=' + adjustTotal.toFixed(2) + ' net=' + netExtra.toFixed(2));
+    const extraTotal = parseFloat(extrasRes.rows[0]?.extra_total || 0);
+    if (extraTotal > 0) {
+      logger.info('Extra charges found: R$ ' + extraTotal.toFixed(2));
     }
     // 3. Carrega o mapeamento GOC para o mês da conta
     // Busca GOC do mês da conta; se não houver, usa o mais recente disponível
@@ -168,12 +158,10 @@ async function processAllocation(vivoAccountId, options = {}) {
       }
     }
 
-    // Adiciona extras líquidos (extra_charge - adjustment) ao valor não alocado
-    if (netExtra !== 0) {
-      allocationData.totalUnallocated += netExtra;
-      if (netExtra > 0) {
-        allocationData.withoutCC.push({ phone: '__extra__', amount: netExtra });
-      }
+    // Adiciona cobranças extras ao valor não alocado (serão distribuídas pela regra)
+    if (extraTotal > 0) {
+      allocationData.totalUnallocated += extraTotal;
+      allocationData.withoutCC.push({ phone: '__extra__', amount: extraTotal });
     }
     logger.info('Step 4 OK: withCC=' + allocationData.withCC.length + ' withoutCC=' + allocationData.withoutCC.length + ' extras=' + extraTotal.toFixed(2));
     // 5. Carrega centros de custo ativos

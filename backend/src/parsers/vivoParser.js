@@ -150,25 +150,9 @@ async function parseVivoFile(fileBuffer, fileName) {
           }
         }
 
-        // ── desconto / multa / ajuste (162D, 164A, 162T) ───────────────
-        // Esses segmentos podem ter valor em posição 165-195 OU 180-210
-        if ((segment === '162D' || segment === '164A' || segment === '162T') && !isPhone(phone)) {
-          let v = parseMonetary(valStr); // posição 165-195
-          // Sanity: ajuste deve ser < R$ 10.000 (valores maiores são provavelmente IDs)
-          if (v !== null && Math.abs(v) > 10000) v = null;
-          if (v === null) {
-            const altVal = row.length > 195 ? row.substring(180, 210).trim() : '';
-            const v2 = parseMonetary(altVal);
-            if (v2 !== null && Math.abs(v2) <= 10000) v = v2;
-          }
-          if (v !== null && v !== 0 && Math.abs(v) <= 10000) {
-            result.rawItems.push({
-              lineNumber: null, subscriptionCode: null,
-              segmentCode: segment, category: 'adjustment',
-              description: segment === '162D' ? 'Desconto/crédito' : 'Ajuste/multa', amount: v,
-            });
-          }
-        }
+        // ── desconto/ajuste (162D, 164A, 162T): desativado
+        // O 190T já captura o total líquido da conta incluindo descontos
+        // Capturar 162D separado causava duplicação e valores absurdos
 
         // ── nome do plano ─────────────────────────────────────────────
         if (segment === SEG_PLAN_NAME && isPhone(phone) && desc) {
