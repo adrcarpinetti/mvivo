@@ -1071,8 +1071,7 @@ function DashboardPage() {
   const monthly = data?.monthlyEvolution || [];
   const topCC = data?.topCostCenters || [];
 
-  const aggKpis = React.useMemo(() => {
-    const base = kpis || {};
+  const aggKpis = (() => {
     const fromMonthly = {
       total_invoice:    monthly.reduce((s, m) => s + parseFloat(m.invoice_total || 0), 0),
       total_allocated:  monthly.reduce((s, m) => s + parseFloat(m.allocated_total || 0), 0),
@@ -1080,9 +1079,9 @@ function DashboardPage() {
       lines_with_cc:    monthly.reduce((s, m) => s + parseInt(m.total_lines || 0), 0),
       lines_without_cc: monthly.reduce((s, m) => s + parseInt(m.lines_without_cc || 0), 0),
     };
-    const useMonthly = fromMonthly.total_invoice > parseFloat(base.total_invoice || 0);
-    return useMonthly ? fromMonthly : base;
-  }, [kpis, monthly]);
+    const useMonthly = fromMonthly.total_invoice > parseFloat((kpis || {}).total_invoice || 0);
+    return useMonthly ? fromMonthly : (kpis || {});
+  })();
 
   const COLORS = ['#1a1f6e','#c900a1','#6e1a7e','#2563eb','#059669','#d97706','#dc2626','#8b5cf6'];
 
