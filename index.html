@@ -1620,13 +1620,19 @@ function AllocationsPage() {
                     React.createElement('td', null, acc.company_name || '-'),
                     React.createElement('td', null, mes),
                     React.createElement('td', { className: 'td-num' }, fmt.currency(totalFatura)),
-                    React.createElement('td', { className: 'td-num' }, totalRateado ? fmt.currency(totalRateado) : React.createElement('span', { className: 'text-muted' }, 'Não rateado')),
+                    React.createElement('td', { className: 'td-num' },
+                      totalRateado
+                        ? fmt.currency(totalRateado)
+                        : React.createElement('span', { className: 'text-muted' }, 'Não rateado')
+                    ),
                     React.createElement('td', {
-                      className: `td-num ${Math.abs(diferenca) > 0.01 ? 'text-warning' : 'text-success'}`
+                      className: `td-num ${totalRateado && Math.abs(diferenca) > 0.01 ? 'text-warning' : 'text-success'}`
                     }, totalRateado ? fmt.currency(diferenca) : '-'),
-                    React.createElement('td', { className: 'td-num' }, linhas),
-                    React.createElement('td', { className: `td-num ${semCC > 0 ? 'text-warning' : ''}` }, semCC),
-                    React.createElement('td', null, React.createElement(StatusBadge, { status: acc.status || 'imported' })),
+                    React.createElement('td', { className: 'td-num' },
+                      acc.total_lines != null ? acc.total_lines : (linhas !== '-' ? linhas : '-')),
+                    React.createElement('td', { className: `td-num ${semCC > 0 ? 'text-warning' : ''}` },
+                      acc.lines_without_cc != null ? acc.lines_without_cc : semCC),
+                    React.createElement('td', null, React.createElement(StatusBadge, { status: acc.allocation_status || acc.status || 'imported' })),
                     React.createElement('td', null,
                       React.createElement('div', { className: 'flex gap-8' },
                         acc.status !== 'closed' && React.createElement('button', {
@@ -1644,7 +1650,7 @@ function AllocationsPage() {
                         }, processing === accId ? React.createElement(Spinner) : '⚡ Ratear'),
                         (acc.allocation_id || acc.id) && React.createElement('button', {
                           className: 'btn btn-outline btn-sm',
-                          onClick: () => viewDetail(acc.allocation_id || acc.id)
+                          onClick: () => { if (acc.allocation_id) { viewDetail(acc.allocation_id); } else { show('Esta conta ainda não foi rateada. Clique em ⚡ Ratear primeiro.', 'warning'); } }
                         }, '👁 Ver')
                       )
                     )

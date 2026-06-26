@@ -46,8 +46,21 @@ router.get('/', authenticate, async (req, res) => {
     // Retorna também `accounts` para compatibilidade com a tela de Rateio e Simulação
     // O frontend usa `d.accounts` em vários lugares
     const accountsQuery = await query(`
-      SELECT va.id, va.account_number, va.reference_month, va.total_amount, va.status
+      SELECT
+        va.id,
+        va.account_number,
+        va.reference_month,
+        va.total_amount,
+        va.status,
+        ma.id              AS allocation_id,
+        ma.total_invoice_amount,
+        ma.total_allocated_amount,
+        ma.difference,
+        ma.total_lines,
+        ma.lines_without_cc,
+        ma.status          AS allocation_status
       FROM vivo_accounts va
+      LEFT JOIN monthly_allocations ma ON ma.vivo_account_id = va.id
       ORDER BY va.reference_month DESC, va.account_number
       LIMIT 100
     `);
