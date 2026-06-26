@@ -3050,7 +3050,7 @@ function SimulationPage() {
   const [confirming, setConfirming] = useState(false);
   const [filterYear, setFilterYear] = useState(String(new Date().getFullYear()));
   const [filterMonth, setFilterMonth] = useState('');
-  const { toast } = useToast();
+  const { show: toast, ToastEl } = useToast();
 
   const currentYear = new Date().getFullYear();
 
@@ -3105,6 +3105,7 @@ function SimulationPage() {
   };
 
   return React.createElement('div', { className: 'page' },
+    ToastEl,
     React.createElement('div', { className: 'flex-between mb-24' },
       React.createElement('div', null,
         React.createElement('h2', { style: { fontSize: 18, fontWeight: 700 } }, 'Simulação de Rateio'),
