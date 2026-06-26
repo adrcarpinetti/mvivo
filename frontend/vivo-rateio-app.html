@@ -1130,7 +1130,7 @@ function DashboardPage() {
       ),
       React.createElement('div', { style: { fontSize: 12, color: 'var(--text-muted)' } },
         filterMonth
-          ? `${new Date(`${filterYear}-${filterMonth}-15`).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).replace(/^\w/, c => c.toUpperCase())}`
+          ? (() => { try { const d = new Date(`${filterYear}-${filterMonth}-15`); const s = d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }); return s.charAt(0).toUpperCase() + s.slice(1); } catch(e) { return filterMonth + '/' + filterYear; } })()
           : `Ano ${filterYear} — todos os meses`
       )
     ),
