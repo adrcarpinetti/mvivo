@@ -105,6 +105,18 @@ async function parseVivoFile(fileBuffer, fileName) {
           }
         }
 
+        // ── cobranças extras (não por linha): 190T, 195A ─────────────
+        if ((segment === '190T' || segment === '195A') && !isPhone(phone)) {
+          const v = parseMonetary(valStr);
+          if (v !== null && v > 0) {
+            result.rawItems.push({
+              lineNumber: null, subscriptionCode: null,
+              segmentCode: segment, category: 'extra_charge',
+              description: 'Cobrança extra (não por linha)', amount: v,
+            });
+          }
+        }
+
         // ── nome do plano ─────────────────────────────────────────────
         if (segment === SEG_PLAN_NAME && isPhone(phone) && desc) {
           ensureLine(lineMap, phone, subscr);
