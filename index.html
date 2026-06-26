@@ -863,8 +863,10 @@ async function demoRequest(method, path, body) {
                month1: cc.total_amount * 0.97, month2: cc.total_amount })) };
   }
   if (path === '/imports/vivo' || path === '/imports/goc') {
-    await demoDelay(1200);
-    return { success: true, message: 'Modo demo — arquivo recebido (não processado no servidor)', warnings: ['Este é o modo demonstração. Conecte um backend para processar arquivos reais.'] };
+    // No modo demo o upload é tratado diretamente pelo ImportPage via parseFileInBrowser()
+    // Este caminho não deve ser alcançado normalmente
+    await demoDelay(400);
+    return { success: true, lines: [], warnings: ['Modo demo: use parseFileInBrowser()'] };
   }
   return {};
 }
@@ -1204,20 +1206,160 @@ function ImportPage() {
     setFiles(prev => [...prev, ...dropped]);
   };
 
+  // ── Parser de arquivo Vivo TXT (posicional) no browser ──────────────────
+  const parseVivoTxt = (text, fileName) => {
+    const lines = text.split(/\r?\n/);
+    const lineMap = new Map();
+    let accountNumber = null, totalAmount = 0;
+
+    // Mês pelo nome do arquivo ex: _0626.ZIP → 06/2026
+    const mMatch = fileName.match(/_?(\d{2})(\d{2})\.(ZIP|TXT)/i);
+    const refMonthLabel = mMatch ? `${mMatch[1]}/${2000+parseInt(mMatch[2])}` : refMonth;
+
+    for (const row of lines) {
+      if (row.length < 110) continue;
+      const account = row.substring(0, 14).trim();
+      const subscr  = row.substring(14, 29).trim();
+      const phone   = row.substring(29, 44).trim();
+      const segment = row.substring(105, 120).trim();
+      const valStr  = row.substring(165, 195).trim();
+
+      if (!accountNumber && account && /^\d{5,}$/.test(account)) accountNumber = account;
+
+      const parseVal = s => { if (!s) return null; const v = parseFloat(s.replace(/[^\d.\-]/g,'')); return isNaN(v) ? null : v; };
+      const isPhone  = s => s && /^\d{10,13}$/.test(s.replace(/\D/g,'')) && s.replace(/\D/g,'').length >= 10;
+
+      if (segment === '059A') { const v = parseVal(valStr); if (v) totalAmount = v; }
+      if (segment === '215D' && isPhone(phone)) {
+        const v = parseVal(valStr);
+        if (v !== null) lineMap.set(phone, { number: phone, subscr, amount: v });
+      }
+      if (segment === '110D' && isPhone(phone) && !lineMap.has(phone)) {
+        lineMap.set(phone, { number: phone, subscr, amount: 0 });
+      }
+    }
+
+    const lineList = Array.from(lineMap.values());
+    if (!totalAmount && lineList.length) totalAmount = lineList.reduce((s,l) => s+l.amount, 0);
+
+    return { accountNumber, referenceMonth: refMonthLabel, totalAmount, lines: lineList, fileName };
+  };
+
+  // ── Parser CSV GOC ────────────────────────────────────────────────────────
+  const parseGocCsv = (text) => {
+    const rows = text.split(/\r?\n/).filter(Boolean);
+    if (!rows.length) return { items: [], errors: ['Arquivo vazio'] };
+    const headers = rows[0].split(';').map(h => h.trim().replace(/^"|"$/g,''));
+    const idx = k => headers.findIndex(h => h === k);
+    const iLinha = idx('LINHA'), iCC = idx('COD_CENTRO_CUSTO'), iNomeCC = idx('CENTRO_CUSTO'),
+          iFuncionario = idx('FUNCIONARIO'), iConta = idx('NUMERO_CONTA'), iSit = idx('LINHA_ATIVA');
+
+    const items = [], errors = [];
+    for (let i = 1; i < rows.length; i++) {
+      const cols = rows[i].split(';').map(c => c.trim().replace(/^"|"$/g,''));
+      const linha = cols[iLinha]?.replace(/\D/g,'');
+      if (!linha || linha.length < 10) { errors.push(`Linha ${i+1}: telefone inválido`); continue; }
+      items.push({
+        number: linha,
+        costCenterCode: cols[iCC] || '',
+        costCenterName: cols[iNomeCC] || '',
+        employee: cols[iFuncionario] || '',
+        account: cols[iConta] || '',
+        active: cols[iSit] !== 'N',
+      });
+    }
+    return { items, errors };
+  };
+
+  // ── Lê o arquivo como texto com latin-1 ──────────────────────────────────
+  const readFileAsText = (file) => new Promise((res, rej) => {
+    const reader = new FileReader();
+    reader.onload = e => res(e.target.result);
+    reader.onerror = rej;
+    reader.readAsText(file, 'latin1');
+  });
+
+  // ── Submit com parsing no browser ────────────────────────────────────────
   const handleSubmit = async () => {
     if (!files.length) { show('Selecione ao menos um arquivo', 'error'); return; }
     if (!refMonth) { show('Informe o mês de referência', 'error'); return; }
 
     setLoading(true); setResult(null);
-    const results = [];
 
+    if (!DEMO_MODE) {
+      // Modo backend: envia para API
+      const results = [];
+      for (const file of files) {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('referenceMonth', refMonth);
+        try {
+          const r = await api.upload('/imports/' + tab, formData);
+          results.push({ file: file.name, success: true, ...r });
+        } catch(err) {
+          results.push({ file: file.name, success: false, error: err.message });
+        }
+      }
+      setResult(results);
+      const ok = results.filter(r => r.success).length;
+      show(ok + ' arquivo(s) importado(s)', ok < results.length ? 'warning' : 'success');
+      setLoading(false);
+      return;
+    }
+
+    // Modo demo: parseia no browser
+    const results = [];
     for (const file of files) {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('referenceMonth', refMonth);
       try {
-        const r = await api.upload(`/imports/${tab}`, formData);
-        results.push({ file: file.name, success: true, ...r });
+        if (tab === 'vivo') {
+          const text = await readFileAsText(file);
+          const parsed = parseVivoTxt(text, file.name);
+          // Salva no DEMO_DATA para aparecer no dashboard/rateio
+          const accId = String(Date.now() + Math.random());
+          const existing = DEMO_DATA.accounts.findIndex(a =>
+            a.account_number === parsed.accountNumber && a.reference_month?.includes(parsed.referenceMonth?.split('/')[0]));
+          const acct = {
+            id: accId, account_number: parsed.accountNumber || file.name,
+            reference_month: refMonth + '-01', total_amount: parsed.totalAmount, status: 'imported',
+            lines: parsed.lines,
+          };
+          if (existing >= 0) DEMO_DATA.accounts[existing] = acct;
+          else DEMO_DATA.accounts.unshift(acct);
+
+          // Atualiza KPIs demo
+          DEMO_DATA.dashboard.kpis.total_invoice = DEMO_DATA.accounts.reduce((s,a) => s + (a.total_amount||0), 0);
+          DEMO_DATA.dashboard.kpis.total_lines = DEMO_DATA.accounts.reduce((s,a) => s + (a.lines?.length||0), 0);
+          DEMO_DATA.dashboard.recentAccounts = DEMO_DATA.accounts.slice(0,5);
+
+          results.push({
+            file: file.name, success: true,
+            accountNumber: parsed.accountNumber,
+            referenceMonth: parsed.referenceMonth,
+            totalAmount: parsed.totalAmount,
+            lineCount: parsed.lines.length,
+            lines: parsed.lines,
+            warnings: parsed.lines.length === 0 ? ['Nenhuma linha encontrada — verifique o formato do arquivo'] : [],
+          });
+        } else {
+          // GOC
+          const text = await readFileAsText(file);
+          const parsed = parseGocCsv(text);
+          // Salva mapeamento de linhas → CC no DEMO_DATA
+          DEMO_DATA._gocMap = DEMO_DATA._gocMap || {};
+          for (const item of parsed.items) {
+            DEMO_DATA._gocMap[item.number] = item;
+          }
+          // Atualiza linhas sem CC
+          const semCC = Object.values(DEMO_DATA._gocMap).filter(i => !i.costCenterCode).length;
+          DEMO_DATA.dashboard.kpis.lines_without_cc = semCC;
+
+          results.push({
+            file: file.name, success: true,
+            itemCount: parsed.items.length,
+            errorCount: parsed.errors.length,
+            warnings: parsed.errors.slice(0, 5),
+          });
+        }
       } catch(err) {
         results.push({ file: file.name, success: false, error: err.message });
       }
@@ -1226,7 +1368,7 @@ function ImportPage() {
     setResult(results);
     const ok = results.filter(r => r.success).length;
     const fail = results.length - ok;
-    show(`${ok} arquivo(s) importado(s) com sucesso${fail ? `, ${fail} com erro` : ''}`,
+    show(ok + ' arquivo(s) processado(s)' + (fail ? ', ' + fail + ' com erro' : ''),
          fail > 0 ? 'warning' : 'success');
     setLoading(false);
   };
@@ -1312,23 +1454,53 @@ function ImportPage() {
         React.createElement('div', { className: 'card-title mb-16' }, 'Resultado da Importação'),
         result
           ? result.map((r, i) =>
-              React.createElement('div', {
-                key: i,
-                className: `alert ${r.success ? 'alert-success' : 'alert-danger'}`,
-                style: { marginBottom: 12 }
-              },
-                React.createElement('div', null,
+              React.createElement('div', { key: i, style: { marginBottom: 16 } },
+                // Cabeçalho do arquivo
+                React.createElement('div', {
+                  className: `alert ${r.success ? 'alert-success' : 'alert-danger'}`,
+                  style: { marginBottom: 8 }
+                },
                   React.createElement('strong', null, r.file),
                   React.createElement('br'),
                   r.success
-                    ? `✓ ${r.message || 'Importado com sucesso'}`
+                    ? React.createElement('span', null,
+                        '✓ Processado com sucesso — ',
+                        r.lineCount !== undefined
+                          ? `${r.lineCount} linha(s) · ${fmt.currency(r.totalAmount || 0)}`
+                          : r.itemCount !== undefined
+                          ? `${r.itemCount} registro(s) GOC`
+                          : r.message || 'OK'
+                      )
                     : `✗ ${r.error}`
                 ),
-                r.success && r.linesImported !== undefined && React.createElement('div', { style: { marginTop: 6, fontSize: 12 } },
-                  `Linhas: ${r.linesImported} | Total: ${fmt.currency(r.totalAmount)}`
+
+                // Tabela de linhas (Vivo)
+                r.success && r.lines?.length > 0 && React.createElement('div', { className: 'card', style: { padding: 0, overflow: 'hidden' } },
+                  React.createElement('div', { style: { padding: '8px 12px', background: 'var(--surface-2)', borderBottom: '1px solid var(--border)', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' } },
+                    `${r.lines.length} linha(s) encontrada(s)`
+                  ),
+                  React.createElement('div', { style: { maxHeight: 260, overflowY: 'auto' } },
+                    React.createElement('table', { className: 'table', style: { margin: 0 } },
+                      React.createElement('thead', null,
+                        React.createElement('tr', null,
+                          ['Telefone', 'Valor'].map(h => React.createElement('th', { key: h, style: { position: 'sticky', top: 0, background: 'var(--surface-1)', zIndex: 1 } }, h))
+                        )
+                      ),
+                      React.createElement('tbody', null,
+                        r.lines.map((l, j) =>
+                          React.createElement('tr', { key: j },
+                            React.createElement('td', null, React.createElement('code', null, fmt.phone(l.number))),
+                            React.createElement('td', null, fmt.currency(l.amount))
+                          )
+                        )
+                      )
+                    )
+                  )
                 ),
-                r.warnings?.length > 0 && React.createElement('div', { style: { marginTop: 6, fontSize: 12 } },
-                  `⚠ ${r.warnings.length} aviso(s)`
+
+                // Avisos
+                r.warnings?.length > 0 && React.createElement('div', { style: { marginTop: 6, fontSize: 12, color: 'var(--warning)' } },
+                  r.warnings.slice(0,3).map((w,j) => React.createElement('div', { key: j }, `⚠ ${w}`))
                 )
               )
             )
