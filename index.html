@@ -1643,12 +1643,65 @@ function AllocationsPage() {
 
   return React.createElement('div', { className: 'page' },
     ToastEl,
-    React.createElement('div', { className: 'flex-between mb-24' },
+    React.createElement('div', { className: 'flex-between mb-16' },
       React.createElement('div', null,
         React.createElement('h2', { style: { fontSize: 18, fontWeight: 700 } }, 'Rateio Mensal'),
         React.createElement('p', { className: 'text-muted mt-4' }, 'Processamento e conferência por conta')
       ),
       React.createElement('button', { className: 'btn btn-outline', onClick: loadData }, '↺ Atualizar')
+    ),
+
+    // Barra de ações em lote
+    React.createElement('div', { className: 'card mb-16', style: { padding: '12px 16px' } },
+      React.createElement('div', { style: { display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' } },
+        React.createElement('span', { style: { fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' } }, 'Rateio em Lote:'),
+        React.createElement('select', {
+          id: 'batch-month-select',
+          className: 'input', style: { width: 160 },
+          defaultValue: ''
+        },
+          React.createElement('option', { value: '' }, '— Selecione o mês —'),
+          [...new Set(accounts.map(a => a.reference_month?.substring(0,7)).filter(Boolean))].sort().reverse().map(m =>
+            React.createElement('option', { key: m, value: m },
+              new Date(m + '-15').toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
+            )
+          )
+        ),
+        React.createElement('button', {
+          className: 'btn btn-primary',
+          disabled: !!processing,
+          onClick: async () => {
+            const sel = document.getElementById('batch-month-select');
+            const month = sel?.value;
+            if (!month) { show('Selecione o mês', 'error'); return; }
+            const pending = accounts.filter(a =>
+              a.reference_month?.startsWith(month) &&
+              !['closed'].includes(a.allocation_status || a.status)
+            );
+            if (pending.length === 0) { show('Nenhuma conta pendente neste mês', 'warning'); return; }
+            if (!window.confirm(`Ratear ${pending.length} conta(s) de ${month}? Esta ação processa todos definitivamente.`)) return;
+            let ok = 0, fail = 0;
+            for (const acc of pending) {
+              setProcessing(acc.id);
+              try {
+                await api.post('/allocations/process', { vivoAccountId: acc.id, simulate: false });
+                ok++;
+              } catch(e) { fail++; }
+            }
+            setProcessing(null);
+            show(`Lote concluído: ${ok} processada(s)${fail ? `, ${fail} com erro` : ''}`, fail ? 'warning' : 'success');
+            loadData();
+          }
+        }, processing ? '⏳ Processando…' : `⚡ Ratear Mês`),
+
+        React.createElement('span', { style: { fontSize: 12, color: 'var(--text-muted)' } },
+          (() => {
+            const sel = accounts;
+            const pendentes = sel.filter(a => !['closed'].includes(a.allocation_status || a.status));
+            return pendentes.length > 0 ? `${pendentes.length} conta(s) pendente(s)` : 'Todas as contas processadas';
+          })()
+        )
+      )
     ),
 
     loading ? React.createElement('div', { style: { textAlign: 'center', padding: 40 } }, React.createElement(Spinner)) :
