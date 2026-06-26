@@ -446,6 +446,8 @@ INSERT INTO roles (name, description, permissions) VALUES
 
 -- Usuário admin padrão (senha: Admin@123)
 INSERT INTO users (name, email, password_hash, role_id) VALUES
-('Administrador', 'admin@empresa.com.br', 
- '$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWq',
- (SELECT id FROM roles WHERE name = 'admin'));
+('Administrador', 'admin@empresa.com.br',
+ '$2b$10$o2cJP4fN.CsdOwcTxwR61ucnIuYjtMkqzyATptv0pJo6gi4HMr81.',
+ (SELECT id FROM roles WHERE name = 'admin'))
+ON CONFLICT (email) DO UPDATE SET
+  password_hash = EXCLUDED.password_hash;
