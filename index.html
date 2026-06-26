@@ -3158,40 +3158,74 @@ function LinesPage() {
                   React.createElement('div', { style: { fontWeight: 600, fontSize: 12, color: 'var(--text-secondary)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1 } },
                     `Histórico — ${lineDetail.history?.length} meses`
                   ),
-                  React.createElement('table', { className: 'table', style: { fontSize: 12 } },
-                    React.createElement('thead', null,
-                      React.createElement('tr', null,
-                        ['Mês', 'CC', 'Funcionário', 'Valor', ''].map(h =>
-                          React.createElement('th', { key: h }, h)
+                  (lineDetail.history || []).map((h, j) => {
+                    const prev = lineDetail.history[j + 1];
+                    const ccChanged  = prev && h.cost_center_code !== prev.cost_center_code;
+                    const empChanged = prev && h.employee_name    !== prev.employee_name;
+                    const changed = ccChanged || empChanged;
+                    const cats = h.categories || {};
+                    const subscription = cats.monthly_total;
+                    const installment  = cats.installment;
+                    const consumption  = cats.consumption;
+                    const extra        = cats.extra_charge;
+                    const adjustment   = cats.adjustment;
+
+                    return React.createElement('div', {
+                      key: j,
+                      style: {
+                        border: '1px solid var(--border)', borderRadius: 8, padding: 12,
+                        marginBottom: 8,
+                        borderLeft: changed ? '3px solid var(--brand-primary)' : '1px solid var(--border)',
+                        background: changed ? 'rgba(201,0,161,0.04)' : 'var(--surface-1)'
+                      }
+                    },
+                      // Cabeçalho: mês e indicador de mudança
+                      React.createElement('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 } },
+                        React.createElement('span', { style: { fontWeight: 700, fontSize: 13 } }, fmt.month(h.reference_month)),
+                        changed && React.createElement('span', {
+                          style: { fontSize: 10, background: 'var(--brand-primary)', color: '#fff', padding: '2px 6px', borderRadius: 4 }
+                        }, ccChanged && empChanged ? 'CC e usuário mudaram' : ccChanged ? '⚡ CC mudou' : '⚡ Usuário mudou')
+                      ),
+
+                      // Funcionário e CC
+                      React.createElement('div', { style: { display: 'flex', gap: 12, marginBottom: 8, fontSize: 12 } },
+                        React.createElement('div', { style: { flex: 1 } },
+                          React.createElement('div', { style: { color: 'var(--text-muted)', fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.5 } }, 'Funcionário'),
+                          React.createElement('div', { style: { fontWeight: 500 } }, h.employee_name || '—')
+                        ),
+                        React.createElement('div', { style: { flex: 1 } },
+                          React.createElement('div', { style: { color: 'var(--text-muted)', fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.5 } }, 'Centro de Custo'),
+                          React.createElement('div', { style: { fontWeight: 600 } }, h.cost_center_code || '—'),
+                          h.cost_center_name && React.createElement('div', { style: { fontSize: 11, color: 'var(--text-muted)' } }, h.cost_center_name)
+                        )
+                      ),
+
+                      // Conta
+                      h.account_number && React.createElement('div', { style: { fontSize: 11, color: 'var(--text-muted)', marginBottom: 8 } },
+                        `Conta: ${h.account_number}` + (h.plan_type ? ` · ${h.plan_type}` : '')
+                      ),
+
+                      // Breakdown financeiro
+                      React.createElement('div', { style: { borderTop: '1px solid var(--border)', paddingTop: 8 } },
+                        [
+                          subscription != null && { label: 'Total da linha', value: subscription, color: '#1a1f6e' },
+                          installment  != null && { label: '↳ Parcelamento', value: installment,  color: '#7c3aed' },
+                          consumption  != null && { label: '↳ Consumo',      value: consumption,  color: '#0891b2' },
+                          extra        != null && { label: 'Extras/Taxas',    value: extra,        color: '#c900a1' },
+                          adjustment   != null && { label: 'Descontos',       value: adjustment,   color: '#059669' },
+                        ].filter(Boolean).map((item, k) =>
+                          React.createElement('div', {
+                            key: k,
+                            style: { display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '2px 0', color: item.color }
+                          },
+                            React.createElement('span', null, item.label),
+                            React.createElement('span', { style: { fontWeight: item.label === 'Total da linha' ? 700 : 400 } },
+                              fmt.currency(item.value))
+                          )
                         )
                       )
-                    ),
-                    React.createElement('tbody', null,
-                      (lineDetail.history || []).map((h, j) => {
-                        const prev = lineDetail.history[j + 1];
-                        const ccChanged  = prev && h.cost_center_code  !== prev.cost_center_code;
-                        const empChanged = prev && h.employee_name      !== prev.employee_name;
-                        const changed = ccChanged || empChanged;
-                        return React.createElement('tr', {
-                          key: j,
-                          style: changed ? { background: 'rgba(201,0,161,0.06)', borderLeft: '3px solid var(--brand-primary)' } : {}
-                        },
-                          React.createElement('td', null, fmt.month(h.reference_month)),
-                          React.createElement('td', null,
-                            React.createElement('div', { style: { fontWeight: 600 } }, h.cost_center_code || '—'),
-                            h.cost_center_name && React.createElement('div', { style: { fontSize: 11, color: 'var(--text-muted)' } }, h.cost_center_name)
-                          ),
-                          React.createElement('td', null, h.employee_name || React.createElement('span', { className: 'text-muted' }, '—')),
-                          React.createElement('td', { className: 'td-num' }, fmt.currency(parseFloat(h.amount || 0))),
-                          React.createElement('td', null,
-                            changed && React.createElement('span', {
-                              style: { fontSize: 10, background: 'var(--brand-primary)', color: '#fff', padding: '1px 5px', borderRadius: 4 }
-                            }, ccChanged ? 'CC mudou' : 'Usuário mudou')
-                          )
-                        );
-                      })
-                    )
-                  )
+                    );
+                  })
                 )
           )
         )

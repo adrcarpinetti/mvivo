@@ -106,14 +106,17 @@ router.get('/', authenticate, async (req, res) => {
 router.get('/:number/history', authenticate, async (req, res) => {
   try {
     const { number } = req.params;
+
+    // Histórico mensal com total e CC/funcionário
     const result = await query(`
       SELECT
         va.reference_month,
+        va.account_number,
         gi.employee_name,
         gi.cost_center_code,
         gi.cost_center_name,
-        vii.amount,
-        gi.plan_type
+        gi.plan_type,
+        vii.amount AS total_amount
       FROM vivo_invoice_items vii
       JOIN vivo_accounts va ON va.id = vii.vivo_account_id
       LEFT JOIN LATERAL (
@@ -129,7 +132,36 @@ router.get('/:number/history', authenticate, async (req, res) => {
       ORDER BY va.reference_month DESC
     `, [number]);
 
-    res.json({ lineNumber: number, history: result.rows });
+    // Detalhamento por categoria por mês
+    const catResult = await query(`
+      SELECT
+        TO_CHAR(va.reference_month, 'YYYY-MM-01') AS month,
+        vii.item_category,
+        SUM(vii.amount) AS amount
+      FROM vivo_invoice_items vii
+      JOIN vivo_accounts va ON va.id = vii.vivo_account_id
+      WHERE vii.line_number = $1
+        AND vii.item_category IN ('monthly_total','installment','consumption','extra_charge','adjustment')
+      GROUP BY month, vii.item_category
+      ORDER BY month DESC, vii.item_category
+    `, [number]);
+
+    // Agrupa categorias por mês
+    const catByMonth = {};
+    for (const row of catResult.rows) {
+      if (!catByMonth[row.month]) catByMonth[row.month] = {};
+      catByMonth[row.month][row.item_category] = parseFloat(row.amount);
+    }
+
+    // Enriquece o histórico com categorias
+    const history = result.rows.map(h => {
+      const monthKey = h.reference_month instanceof Date
+        ? h.reference_month.toISOString().substring(0, 7) + '-01'
+        : String(h.reference_month).substring(0, 7) + '-01';
+      return { ...h, categories: catByMonth[monthKey] || {} };
+    });
+
+    res.json({ lineNumber: number, history });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
