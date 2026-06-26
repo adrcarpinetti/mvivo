@@ -84,7 +84,7 @@ async function parseVivoFile(fileBuffer, fileName) {
 
         // ── nome da empresa (011D) ────────────────────────────────────
         if (segment === '011D' && !isPhone(phone)) {
-          const nome = row.length > 165 ? row.substring(165, 240).trim() : '';
+          const nome = row.length > 165 ? row.substring(165, 215).trim() : '';
           if (nome) result.companyName = nome;
         }
 
