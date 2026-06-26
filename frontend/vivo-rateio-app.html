@@ -1501,7 +1501,7 @@ function ImportPage() {
 
                 // Avisos
                 r.warnings?.length > 0 && React.createElement('div', { style: { marginTop: 6, fontSize: 12, color: 'var(--warning)' } },
-                  r.warnings.slice(0,3).map((w,j) => React.createElement('div', { key: j }, `⚠ ${w}`))
+                  r.warnings.slice(0,3).map((w,j) => React.createElement('div', { key: j }, `⚠ ${typeof w === 'object' ? (w.message || (w.errors && w.errors.join(', ')) || JSON.stringify(w)) : w}`))
                 )
               )
             )
