@@ -30,18 +30,17 @@ async function processAllocation(vivoAccountId, options = {}) {
     }
     const account = accountRes.rows[0];
 
-    // 2. Carrega os itens da fatura agrupados por linha
+    // 2. Carrega os itens da fatura agrupados por linha (apenas total mensal por linha)
     const itemsRes = await client.query(`
-      SELECT 
+      SELECT DISTINCT ON (vii.line_number)
         vii.line_number,
-        vii.cost_center_id,
-        pl.number AS phone_number,
-        SUM(vii.amount) AS total_amount,
-        COUNT(DISTINCT vii.id) AS item_count
+        COALESCE(pl.number, vii.line_number) AS phone_number,
+        vii.amount AS total_amount
       FROM vivo_invoice_items vii
       LEFT JOIN phone_lines pl ON pl.id = vii.phone_line_id
       WHERE vii.vivo_account_id = $1
-      GROUP BY vii.line_number, vii.cost_center_id, pl.number
+        AND vii.item_category = 'monthly_total'
+      ORDER BY vii.line_number, vii.amount DESC
     `, [vivoAccountId]);
 
     // 3. Carrega o mapeamento GOC para o mês da conta
@@ -121,51 +120,61 @@ async function processAllocation(vivoAccountId, options = {}) {
     );
 
     // 7. Consolida por centro de custo
-    const ccTotals = new Map();
+    // Mapa auxiliar: id -> info do CC
+    const ccInfoMap = new Map();
     for (const cc of costCenters) {
-      ccTotals.set(cc.id, {
-        costCenterId: cc.id,
-        directAmount: 0,
-        directLineCount: 0,
-        allocatedAmount: 0,
-        allocationRuleId: null,
-        allocationPercentage: 0,
-        details: {},
-      });
+      ccInfoMap.set(cc.id, { code: cc.code, name: cc.name });
     }
+
+    const ccTotals = new Map();
+
+    // Garante entrada para cada CC que tem linha direta
+    const ensureCC = (id) => {
+      if (!ccTotals.has(id)) {
+        const info = ccInfoMap.get(id) || {};
+        ccTotals.set(id, {
+          costCenterId: id,
+          costCenterCode: info.code || '',
+          costCenterName: info.name || '',
+          directAmount: 0,
+          directLineCount: 0,
+          allocatedAmount: 0,
+          allocationRuleId: null,
+          allocationPercentage: 0,
+        });
+      }
+      return ccTotals.get(id);
+    };
 
     // Valores diretos
     for (const item of allocationData.withCC) {
-      const cc = ccTotals.get(item.costCenterId);
-      if (cc) {
-        cc.directAmount += item.amount;
-        cc.directLineCount++;
-      }
+      const cc = ensureCC(item.costCenterId);
+      cc.directAmount += item.amount;
+      cc.directLineCount++;
     }
 
     // Valores rateados
     for (const rated of ratedUnallocated) {
-      const cc = ccTotals.get(rated.costCenterId);
-      if (cc) {
-        cc.allocatedAmount += rated.amount;
-        cc.allocationRuleId = rated.ruleId;
-        cc.allocationPercentage = rated.percentage;
-        cc.details = rated.details || {};
-      }
+      const cc = ensureCC(rated.costCenterId);
+      cc.allocatedAmount += rated.amount;
+      cc.allocationRuleId = rated.ruleId;
+      cc.allocationPercentage = rated.percentage;
     }
 
-    const ccBreakdown = Array.from(ccTotals.values()).map(cc => ({
-      ...cc,
-      // Aliases para compatibilidade com o frontend
-      cost_center_code: cc.costCenterCode,
-      cost_center_name: cc.costCenterName,
-      costCenterCode: cc.costCenterCode,
-      costCenterName: cc.costCenterName,
-      directAmount: cc.directAmount || 0,
-      allocatedAmount: cc.allocatedAmount || 0,
-      totalAmount: (cc.directAmount || 0) + (cc.allocatedAmount || 0),
-      lineCount: cc.lineCount || 0,
-    }));
+    const ccBreakdown = Array.from(ccTotals.values())
+      .map(cc => ({
+        costCenterId: cc.costCenterId,
+        costCenterCode: cc.costCenterCode || '',
+        costCenterName: cc.costCenterName || '',
+        cost_center_code: cc.costCenterCode || '',
+        cost_center_name: cc.costCenterName || '',
+        directAmount: cc.directAmount || 0,
+        allocatedAmount: cc.allocatedAmount || 0,
+        totalAmount: (cc.directAmount || 0) + (cc.allocatedAmount || 0),
+        lineCount: cc.directLineCount || 0,
+      }))
+      .filter(cc => cc.totalAmount > 0)  // Remove CCs sem valor
+      .sort((a, b) => b.totalAmount - a.totalAmount);
 
     const totalAllocated = ccBreakdown.reduce((s, c) => s + c.totalAmount, 0);
 
