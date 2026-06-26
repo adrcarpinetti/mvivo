@@ -1889,8 +1889,9 @@ function AllocationsPage() {
                 extra_charge:  { label: 'Extras/Taxas', color: '#c900a1' },
                 adjustment:    { label: 'Descontos', color: '#059669' },
               };
-              // Apenas monthly_total como base (evita duplicar com subcategorias)
-              const cats = modalData.categorySummary.filter(c => c.item_category !== 'monthly_total' || true);
+              // Excluir monthly_total da composição (ele é o total, não um componente)
+              // Mostrar apenas os subcomponentes
+              const cats = modalData.categorySummary.filter(c => c.item_category !== 'monthly_total');
               const totalFat = parseFloat(modalData.allocation?.invoice_total || 0);
               return cats.map((c, i) => {
                 const info = catLabels[c.item_category] || { label: c.item_category, color: '#6b7280' };
