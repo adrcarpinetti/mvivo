@@ -1748,7 +1748,7 @@ function AllocationsPage() {
             if (!month) { show('Selecione o mês', 'error'); return; }
             const pending = accounts.filter(a =>
               a.reference_month?.startsWith(month) &&
-              !['closed'].includes(a.allocation_status || a.status)
+              !['confirmed','closed'].includes(a.allocation_status || a.status)
             );
             if (pending.length === 0) { show('Nenhuma conta pendente neste mês', 'warning'); return; }
             if (!window.confirm(`Ratear ${pending.length} conta(s) de ${month}? Esta ação processa todos definitivamente.`)) return;
@@ -1768,9 +1768,8 @@ function AllocationsPage() {
 
         React.createElement('span', { style: { fontSize: 12, color: 'var(--text-muted)' } },
           (() => {
-            const sel = accounts;
-            const pendentes = sel.filter(a => !['closed'].includes(a.allocation_status || a.status));
-            return pendentes.length > 0 ? `${pendentes.length} conta(s) pendente(s)` : 'Todas as contas processadas';
+            const pendentes = accounts.filter(a => !['confirmed','closed'].includes(a.allocation_status || a.status));
+            return pendentes.length > 0 ? `${pendentes.length} conta(s) pendente(s)` : '✓ Todas processadas';
           })()
         )
       )
