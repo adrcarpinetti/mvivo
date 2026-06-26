@@ -1111,7 +1111,11 @@ function DashboardPage() {
           ? React.createElement(ResponsiveContainer, { width: '100%', height: 220 },
               React.createElement(BarChart, { data: monthly, margin: { top: 4, right: 8, left: 0, bottom: 0 } },
                 React.createElement(CartesianGrid, { strokeDasharray: '3 3', stroke: '#eef0f8' }),
-                React.createElement(XAxis, { dataKey: 'month', tick: { fontSize: 11 }, tickFormatter: s => s.slice(5) }),
+                React.createElement(XAxis, { dataKey: 'month', tick: { fontSize: 11 }, tickFormatter: s => {
+                      const months = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+                      const m = parseInt((s || '').slice(5,7)) - 1;
+                      return months[m] || s.slice(5);
+                    } }),
                 React.createElement(YAxis, { tick: { fontSize: 11 }, tickFormatter: v => `R$${(v/1000).toFixed(0)}k` }),
                 React.createElement(Tooltip, { formatter: (v) => [fmt.currency(v)] }),
                 React.createElement(Legend, { wrapperStyle: { fontSize: 11 } }),

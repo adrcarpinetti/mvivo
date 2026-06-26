@@ -9,40 +9,38 @@ router.get('/dashboard', authenticate, async (req, res) => {
   try {
     const { year = new Date().getFullYear() } = req.query;
 
-    // Totais por mês no ano
+    // Totais por mês no ano — inclui contas Vivo importadas mesmo sem rateio
     const monthlyTotals = await query(`
-      SELECT 
-        TO_CHAR(ma.reference_month, 'YYYY-MM') AS month,
-        SUM(ma.total_invoice_amount) AS invoice_total,
-        SUM(ma.total_allocated_amount) AS allocated_total,
-        SUM(ma.total_unallocated_amount) AS unallocated_total,
-        COUNT(DISTINCT ma.id) AS account_count,
-        SUM(ma.total_lines) AS total_lines,
-        SUM(ma.lines_without_cc) AS lines_without_cc
-      FROM monthly_allocations ma
-      WHERE EXTRACT(YEAR FROM ma.reference_month) = $1
-      GROUP BY month
+      SELECT
+        TO_CHAR(va.reference_month, 'YYYY-MM-01') AS month,
+        SUM(va.total_amount)                       AS invoice_total,
+        COALESCE(SUM(ma.total_allocated_amount),0) AS allocated_total,
+        COUNT(DISTINCT va.id)                      AS account_count,
+        COALESCE(SUM(ma.total_lines),0)            AS total_lines,
+        COALESCE(SUM(ma.lines_without_cc),0)       AS lines_without_cc
+      FROM vivo_accounts va
+      LEFT JOIN monthly_allocations ma ON ma.vivo_account_id = va.id
+      WHERE EXTRACT(YEAR FROM va.reference_month) = $1
+      GROUP BY TO_CHAR(va.reference_month, 'YYYY-MM-01')
       ORDER BY month
     `, [year]);
 
-    // Top centros de custo (último mês fechado)
+    // Top centros de custo — soma do ano atual, top 10 por valor
     const topCC = await query(`
-      SELECT 
+      SELECT
         cc.code,
         cc.name,
-        ai.total_amount,
-        ai.direct_line_count,
-        ai.allocation_percentage,
-        ma.reference_month
+        SUM(ai.total_amount)      AS total_amount,
+        SUM(ai.direct_line_count) AS direct_line_count
       FROM allocation_items ai
       JOIN cost_centers cc ON cc.id = ai.cost_center_id
       JOIN monthly_allocations ma ON ma.id = ai.monthly_allocation_id
-      WHERE ma.reference_month = (
-        SELECT MAX(reference_month) FROM monthly_allocations WHERE status IN ('confirmed','closed')
-      )
-      ORDER BY ai.total_amount DESC
+      WHERE EXTRACT(YEAR FROM ma.reference_month) = $1
+        AND ma.status IN ('confirmed', 'closed')
+      GROUP BY cc.id, cc.code, cc.name
+      ORDER BY total_amount DESC
       LIMIT 10
-    `);
+    `, [year]);
 
     // Linhas sem CC (último mês importado)
     const linesWithoutCC = await query(`
