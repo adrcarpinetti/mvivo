@@ -2724,7 +2724,7 @@ function ReportsPage() {
       React.createElement('p', null, 'Os resultados serão exibidos aqui')
     ) :
 
-    data.type === 'monthly' && React.createElement('div', null,
+    data?.type === 'monthly' && React.createElement('div', null,
       React.createElement('div', { className: 'kpi-grid mb-24' },
         React.createElement('div', { className: 'kpi-card' },
           React.createElement('div', { className: 'kpi-label' }, 'Total do Mês'),
@@ -2770,7 +2770,7 @@ function ReportsPage() {
       )
     ),
 
-    data.type === 'cc' && React.createElement('div', null,
+    data?.type === 'cc' && React.createElement('div', null,
       React.createElement('div', { className: 'card mb-16' },
         React.createElement('h3', { style: { fontWeight: 700, marginBottom: 4 } }, data.costCenter?.name || 'CC não encontrado'),
         React.createElement('p', { className: 'text-muted' }, `Código: ${data.costCenter?.code}`),
@@ -2800,7 +2800,7 @@ function ReportsPage() {
       )
     ),
 
-    data.type === 'line' && React.createElement('div', null,
+    data?.type === 'line' && React.createElement('div', null,
       React.createElement('div', { className: 'card mb-16' },
         React.createElement('h3', { style: { fontWeight: 700, marginBottom: 4 } },
           React.createElement('code', null, fmt.phone(data.lineNumber || '')),
@@ -2834,7 +2834,7 @@ function ReportsPage() {
       )
     ),
 
-    data.type === 'comparison' && React.createElement('div', null,
+    data?.type === 'comparison' && React.createElement('div', null,
       React.createElement('div', { className: 'card mb-16' },
         React.createElement('h3', { style: { fontWeight: 600, marginBottom: 16 } },
           `Comparação: ${fmt.month(filters.month + '-01')} × ${fmt.month(filters.month2 + '-01')}`
