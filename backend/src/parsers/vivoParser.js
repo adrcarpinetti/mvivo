@@ -126,19 +126,9 @@ async function parseVivoFile(fileBuffer, fileName) {
           }
         }
 
-        // ── parcela de aparelho (225D) ───────────────────────────────
-        if (segment.startsWith('225D') && isPhone(phone)) {
-          const v = parseMonetary(valStr);
-          if (v !== null && v > 0) {
-            ensureLine(lineMap, phone, subscr);
-            lineMap.get(phone).installmentAmount = (lineMap.get(phone).installmentAmount || 0) + v;
-            result.rawItems.push({
-              lineNumber: phone, subscriptionCode: subscr || null,
-              segmentCode: segment, category: 'installment',
-              description: descStr || 'Parcela de aparelho', amount: v,
-            });
-          }
-        }
+        // ── 225D = detalhe de serviço contratado (NÃO é parcela de aparelho)
+        // O 215D já inclui esses valores — não capturar para evitar duplicação
+        // Parcelas reais de aparelho aparecem como 190D com valor alto
 
         // ── consumo (510T = total de consumo por linha) ───────────────
         if (segment.startsWith('510T') && isPhone(phone)) {
