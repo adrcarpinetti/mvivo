@@ -92,12 +92,18 @@ async function parseVivoFile(fileBuffer, fileName) {
         // Número do boleto Vivo contém MMAADD: ex 052622 = 22/05/2026
         if (segment === '020D' && !isPhone(phone) && !result.dueDate) {
           const bf = row.length > 230 ? row.substring(165, 230) : '';
-          const bm = bf.match(/(\d{2})(\d{2})(\d{2})\d{6}/);
-          if (bm) {
-            const bmm = parseInt(bm[1]), baa = parseInt(bm[2]), bdd = parseInt(bm[3]);
-            const byear = 2000 + baa;
-            if (bmm >= 1 && bmm <= 12 && bdd >= 1 && bdd <= 31) {
-              result.dueDate = byear + '-' + String(bmm).padStart(2,'0') + '-' + String(bdd).padStart(2,'0');
+          // Buscar padrão MMAADD onde MM é mês válido (01-12), AA=ano, DD=dia
+          const bms = bf.match(/\b(0[1-9]|1[0-2])(\d{2})([0-2]\d|3[01])\d{6}\b/g);
+          if (bms) {
+            for (const bstr of bms) {
+              const bmm = parseInt(bstr.substring(0,2));
+              const baa = parseInt(bstr.substring(2,4));
+              const bdd = parseInt(bstr.substring(4,6));
+              const byear = 2000 + baa;
+              if (byear >= 2020 && byear <= 2035 && bmm >= 1 && bmm <= 12 && bdd >= 1 && bdd <= 31) {
+                result.dueDate = byear + '-' + String(bmm).padStart(2,'0') + '-' + String(bdd).padStart(2,'0');
+                break;
+              }
             }
           }
         }
