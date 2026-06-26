@@ -122,9 +122,23 @@ router.get('/:id', authenticate, async (req, res) => {
       ORDER BY ai.total_amount DESC
     `, [id]);
 
+    // Resumo por categoria de cobrança
+    const catRes = await query(`
+      SELECT
+        item_category,
+        COUNT(*)::int   AS count,
+        SUM(amount)     AS total
+      FROM vivo_invoice_items
+      WHERE vivo_account_id = $1
+        AND item_category IN ('monthly_total','installment','consumption','extra_charge','adjustment')
+      GROUP BY item_category
+      ORDER BY total DESC
+    `, [allocRes.rows[0].vivo_account_id]);
+
     res.json({
       allocation: allocRes.rows[0],
       items: itemsRes.rows,
+      categorySummary: catRes.rows,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

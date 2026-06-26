@@ -1877,6 +1877,40 @@ function AllocationsPage() {
           ),
         ),
 
+        // Resumo por categoria
+        modalData.categorySummary?.length > 0 && React.createElement('div', { style: { marginBottom: 16 } },
+          React.createElement('div', { style: { fontWeight: 600, fontSize: 13, marginBottom: 8, color: 'var(--text-secondary)' } }, 'Composição da Fatura'),
+          React.createElement('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap' } },
+            (() => {
+              const catLabels = {
+                monthly_total: { label: 'Assinatura', color: '#1a1f6e' },
+                installment:   { label: 'Parcelamento', color: '#7c3aed' },
+                consumption:   { label: 'Consumo', color: '#0891b2' },
+                extra_charge:  { label: 'Extras/Taxas', color: '#c900a1' },
+                adjustment:    { label: 'Descontos', color: '#059669' },
+              };
+              // Apenas monthly_total como base (evita duplicar com subcategorias)
+              const cats = modalData.categorySummary.filter(c => c.item_category !== 'monthly_total' || true);
+              const totalFat = parseFloat(modalData.allocation?.invoice_total || 0);
+              return cats.map((c, i) => {
+                const info = catLabels[c.item_category] || { label: c.item_category, color: '#6b7280' };
+                const pct = totalFat > 0 ? (parseFloat(c.total) / totalFat * 100).toFixed(1) : 0;
+                return React.createElement('div', {
+                  key: i,
+                  style: {
+                    background: 'var(--surface-2)', borderRadius: 8, padding: '8px 12px',
+                    borderLeft: `3px solid ${info.color}`, minWidth: 140, flex: '1 1 140px'
+                  }
+                },
+                  React.createElement('div', { style: { fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 } }, info.label),
+                  React.createElement('div', { style: { fontWeight: 700, fontSize: 14, color: info.color } }, fmt.currency(parseFloat(c.total))),
+                  React.createElement('div', { style: { fontSize: 11, color: 'var(--text-muted)' } }, `${pct}% · ${c.count} item(s)`)
+                );
+              });
+            })()
+          )
+        ),
+
         React.createElement('div', { className: 'table-container', style: { marginTop: 16 } },
           React.createElement('table', null,
             React.createElement('thead', null,
