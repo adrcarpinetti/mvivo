@@ -1990,7 +1990,13 @@ function RulesPage() {
                   React.createElement('span', { className: 'badge badge-purple' }, RULE_TYPES[rule.rule_type] || rule.rule_type),
                   React.createElement('span', { className: 'badge badge-info' }, `Prio. ${rule.priority}`)
                 ),
-                React.createElement('div', { className: 'text-muted mt-8' },
+                rule.account_number && React.createElement('div', { style: { marginBottom: 4 } },
+                  React.createElement('span', { className: 'badge badge-info', style: { fontSize: 11 } }, `Conta: ${rule.account_number}`)
+                ),
+                !rule.account_number && React.createElement('div', { style: { marginBottom: 4 } },
+                  React.createElement('span', { className: 'badge badge-gray', style: { fontSize: 11 } }, 'Global')
+                ),
+                React.createElement('div', { className: 'text-muted mt-4' },
                   `Vigência: ${fmt.date(rule.valid_from)} ${rule.valid_until ? `até ${fmt.date(rule.valid_until)}` : '(sem fim)'}`
                 )
               )

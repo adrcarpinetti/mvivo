@@ -156,7 +156,7 @@ async function processAllocation(vivoAccountId, options = {}) {
     const costCenters = ccRes.rows;
 
     // 6. Aplica regras de rateio para valores sem CC
-    const rules = await getActiveRules(client, account.reference_month);
+    const rules = await getActiveRules(client, account.reference_month, account.account_number);
     const ratedUnallocated = await applyAllocationRules(
       allocationData.withoutCC,
       allocationData.withCC,
@@ -405,15 +405,25 @@ function distributeManually(ccAmounts, rule) {
     }));
 }
 
-async function getActiveRules(client, referenceMonth) {
+async function getActiveRules(client, referenceMonth, accountNumber) {
+  // Busca regras específicas da conta primeiro, depois globais
   const res = await client.query(`
     SELECT * FROM allocation_rules
     WHERE active = TRUE
       AND valid_from <= $1
       AND (valid_until IS NULL OR valid_until >= $1)
-    ORDER BY priority ASC
-  `, [referenceMonth]);
-  return res.rows;
+      AND (
+        account_number = $2        -- regra específica desta conta
+        OR account_number IS NULL  -- regra global
+      )
+    ORDER BY
+      CASE WHEN account_number = $2 THEN 0 ELSE 1 END,  -- conta específica tem prioridade
+      priority ASC
+  `, [referenceMonth, accountNumber || '']);
+
+  // Se há regra específica da conta, usa só ela; senão usa as globais
+  const specific = res.rows.filter(r => r.account_number === accountNumber);
+  return specific.length > 0 ? specific : res.rows.filter(r => !r.account_number);
 }
 
 async function saveAllocation(client, allocationResult, userId) {
