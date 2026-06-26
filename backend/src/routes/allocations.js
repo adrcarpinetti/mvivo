@@ -106,7 +106,16 @@ router.get('/:id', authenticate, async (req, res) => {
     if (allocRes.rows.length === 0) return res.status(404).json({ error: 'Rateio não encontrado' });
 
     const itemsRes = await query(`
-      SELECT ai.*, cc.code, cc.name
+      SELECT
+        ai.id,
+        ai.cost_center_id,
+        ai.direct_amount,
+        ai.direct_line_count,
+        ai.allocated_amount,
+        ai.allocation_percentage,
+        ai.total_amount,
+        cc.code,
+        cc.name
       FROM allocation_items ai
       JOIN cost_centers cc ON cc.id = ai.cost_center_id
       WHERE ai.monthly_allocation_id = $1

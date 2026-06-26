@@ -83,11 +83,14 @@ async function processAllocation(vivoAccountId, options = {}) {
     const gocMap = new Map();
     for (const row of gocRes.rows) {
       const phone = row.phone_number.replace(/\D/g, '');
-      gocMap.set(phone, {
-        costCenterId: row.cc_id || row.cost_center_id,
-        costCenterCode: row.cost_center_code,
-        costCenterName: row.cost_center_name,
-      });
+      const ccId = parseInt(row.cc_id || row.cost_center_id);
+      if (!isNaN(ccId) && ccId > 0) {
+        gocMap.set(phone, {
+          costCenterId: ccId,
+          costCenterCode: row.cost_center_code,
+          costCenterName: row.cost_center_name,
+        });
+      }
     }
 
     // 4. Classifica os itens
@@ -149,10 +152,11 @@ async function processAllocation(vivoAccountId, options = {}) {
 
     // Garante entrada para cada CC que tem linha direta
     const ensureCC = (id) => {
-      if (!ccTotals.has(id)) {
-        const info = ccInfoMap.get(id) || {};
-        ccTotals.set(id, {
-          costCenterId: id,
+      const intId = parseInt(id);
+      if (!ccTotals.has(intId)) {
+        const info = ccInfoMap.get(intId) || {};
+        ccTotals.set(intId, {
+          costCenterId: intId,
           costCenterCode: info.code || '',
           costCenterName: info.name || '',
           directAmount: 0,
@@ -162,7 +166,7 @@ async function processAllocation(vivoAccountId, options = {}) {
           allocationPercentage: 0,
         });
       }
-      return ccTotals.get(id);
+      return ccTotals.get(intId);
     };
 
     // Valores diretos
