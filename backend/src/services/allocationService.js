@@ -31,6 +31,15 @@ async function processAllocation(vivoAccountId, options = {}) {
       throw new Error('Conta Vivo não encontrada: ' + vivoAccountId);
     }
     const account = accountRes.rows[0];
+    // Normaliza reference_month para string YYYY-MM-DD (PostgreSQL pode retornar Date object)
+    if (account.reference_month instanceof Date) {
+      const d = account.reference_month;
+      account.reference_month = d.getFullYear() + '-' +
+        String(d.getMonth() + 1).padStart(2, '0') + '-' +
+        String(d.getDate()).padStart(2, '0');
+    } else if (account.reference_month && account.reference_month.length > 10) {
+      account.reference_month = account.reference_month.substring(0, 10);
+    }
     logger.info('Step 1 OK: ' + account.account_number + ' ' + account.reference_month);
 
     // 2. Carrega os itens da fatura agrupados por linha (apenas total mensal por linha)
