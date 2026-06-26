@@ -802,7 +802,7 @@ async function demoRequest(method, path, body) {
     return { token: 'demo-token-' + Date.now(), user: u };
   }
   if (path === '/auth/me') return { user: DEMO_DATA.user };
-  if (path === '/reports/dashboard') return DEMO_DATA.dashboard;
+  if (path.startsWith('/reports/dashboard')) return DEMO_DATA.dashboard;
   if (path.startsWith('/allocations') && method === 'GET' && path === '/allocations') {
     return { allocations: DEMO_DATA.allocations, accounts: DEMO_DATA.accounts };
   }
