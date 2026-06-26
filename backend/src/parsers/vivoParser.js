@@ -131,16 +131,22 @@ async function parseVivoFile(fileBuffer, fileName) {
         // Parcelas reais de aparelho aparecem como 190D com valor alto
 
         // ── consumo (510T = total de consumo por linha) ───────────────
-        // Só captura 510T 001 (total), não 510D (detalhes individuais)
-        if (segment === '510T  001' && isPhone(phone)) {
+        // 510T = totalizador, 510D = detalhe individual — só capturar 510T
+        // e apenas se a linha ainda não tem consumo registrado (evitar duplicatas)
+        if (segment.startsWith('510T') && !segment.startsWith('510D') && isPhone(phone)) {
           const v = parseMonetary(valStr);
-          if (v !== null && v > 0 && v < 5000) { // sanity check
+          if (v !== null && v > 0 && v < 5000) {
             ensureLine(lineMap, phone, subscr);
-            result.rawItems.push({
-              lineNumber: phone, subscriptionCode: subscr || null,
-              segmentCode: segment, category: 'consumption',
-              description: 'Consumo (chamadas/dados/SMS)', amount: v,
-            });
+            const entry = lineMap.get(phone);
+            // Só adiciona se ainda não tem consumo para esta linha
+            if (!entry._hasConsumption) {
+              entry._hasConsumption = true;
+              result.rawItems.push({
+                lineNumber: phone, subscriptionCode: subscr || null,
+                segmentCode: segment, category: 'consumption',
+                description: 'Consumo (chamadas/dados/SMS)', amount: v,
+              });
+            }
           }
         }
 
@@ -148,14 +154,14 @@ async function parseVivoFile(fileBuffer, fileName) {
         // Esses segmentos podem ter valor em posição 165-195 OU 180-210
         if ((segment === '162D' || segment === '164A' || segment === '162T') && !isPhone(phone)) {
           let v = parseMonetary(valStr); // posição 165-195
-          if (v === null || Math.abs(v) > 50000) {
-            // Tentar posição alternativa 180-210
+          // Sanity: ajuste deve ser < R$ 10.000 (valores maiores são provavelmente IDs)
+          if (v !== null && Math.abs(v) > 10000) v = null;
+          if (v === null) {
             const altVal = row.length > 195 ? row.substring(180, 210).trim() : '';
             const v2 = parseMonetary(altVal);
-            if (v2 !== null && Math.abs(v2) <= 50000) v = v2;
-            else v = null; // valor absurdo, ignorar
+            if (v2 !== null && Math.abs(v2) <= 10000) v = v2;
           }
-          if (v !== null && v !== 0 && Math.abs(v) <= 50000) {
+          if (v !== null && v !== 0 && Math.abs(v) <= 10000) {
             result.rawItems.push({
               lineNumber: null, subscriptionCode: null,
               segmentCode: segment, category: 'adjustment',
