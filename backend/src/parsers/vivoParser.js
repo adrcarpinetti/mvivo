@@ -206,9 +206,13 @@ async function parseVivoFile(fileBuffer, fileName) {
 
     // Fallback de vencimento: dia 17 do mês seguinte ao período de referência
     if (!result.dueDate && result.referenceMonth) {
-      const ref = new Date(result.referenceMonth + '-15');
-      ref.setMonth(ref.getMonth() + 1);
-      result.dueDate = ref.getFullYear() + '-' + String(ref.getMonth() + 1).padStart(2,'0') + '-17';
+      const parts = result.referenceMonth.split('-');
+      if (parts.length >= 2) {
+        let year = parseInt(parts[0]);
+        let month = parseInt(parts[1]) + 1; // mês seguinte
+        if (month > 12) { month = 1; year++; }
+        result.dueDate = year + '-' + String(month).padStart(2,'0') + '-17';
+      }
     }
 
     logger.info('Vivo parsed OK: ' + result.lines.length + ' linhas, R$ ' + result.totalAmount.toFixed(2) + (result.dueDate ? ', venc=' + result.dueDate : ''));
