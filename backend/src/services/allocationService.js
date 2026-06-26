@@ -182,21 +182,26 @@ async function processAllocation(vivoAccountId, options = {}) {
 
     const ccBreakdown = Array.from(ccTotals.values())
       .map(cc => ({
-        costCenterId: cc.costCenterId,
-        costCenterCode: cc.costCenterCode || '',
-        costCenterName: cc.costCenterName || '',
+        costCenterId:     cc.costCenterId,
+        costCenterCode:   cc.costCenterCode || '',
+        costCenterName:   cc.costCenterName || '',
         cost_center_code: cc.costCenterCode || '',
         cost_center_name: cc.costCenterName || '',
-        directAmount: cc.directAmount || 0,
-        allocatedAmount: cc.allocatedAmount || 0,
-        totalAmount: (cc.directAmount || 0) + (cc.allocatedAmount || 0),
-        lineCount: cc.directLineCount || 0,
+        directAmount:     cc.directAmount    || 0,
+        allocatedAmount:  cc.allocatedAmount || 0,
+        totalAmount:      (cc.directAmount || 0) + (cc.allocatedAmount || 0),
+        lineCount:        cc.directLineCount || 0,
+        directLineCount:  cc.directLineCount || 0, // alias para saveAllocation
+        allocationRuleId: cc.allocationRuleId || null,
+        allocationPercentage: cc.allocationPercentage || 0,
+        details: cc.details || {},
       }))
-      .filter(cc => cc.totalAmount > 0)  // Remove CCs sem valor
+      .filter(cc => cc.totalAmount > 0)
       .sort((a, b) => b.totalAmount - a.totalAmount);
 
     const totalAllocated = ccBreakdown.reduce((s, c) => s + c.totalAmount, 0);
 
+    const totalLines = itemsRes.rows.length;
     const allocationResult = {
       vivoAccountId,
       referenceMonth: account.reference_month,
@@ -206,7 +211,7 @@ async function processAllocation(vivoAccountId, options = {}) {
       totalAllocatedAmount: totalAllocated,
       difference: (parseFloat(account.total_amount) || 0) - totalAllocated,
       totalUnallocatedAmount: allocationData.totalUnallocated,
-      totalLines: itemsRes.rows.length,
+      totalLines,
       linesWithCC: allocationData.withCC.length,
       linesWithoutCC: allocationData.withoutCC.length,
       linesInVivoNotGoc: allocationData.unmatched.length,
