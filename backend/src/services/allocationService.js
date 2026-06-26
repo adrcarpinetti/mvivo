@@ -44,8 +44,27 @@ async function processAllocation(vivoAccountId, options = {}) {
     `, [vivoAccountId]);
 
     // 3. Carrega o mapeamento GOC para o mês da conta
+    // Busca GOC do mês da conta; se não houver, usa o mais recente disponível
+    const gocMonthRes = await client.query(`
+      SELECT id, reference_month FROM goc_imports
+      WHERE reference_month = $1
+      ORDER BY created_at DESC LIMIT 1
+    `, [account.reference_month]);
+
+    let gocMonth = account.reference_month;
+    if (gocMonthRes.rows.length === 0) {
+      // Fallback: GOC mais recente
+      const latestGoc = await client.query(
+        'SELECT reference_month FROM goc_imports ORDER BY reference_month DESC LIMIT 1'
+      );
+      if (latestGoc.rows.length > 0) {
+        gocMonth = latestGoc.rows[0].reference_month;
+        logger.warn(\`GOC não encontrado para \${account.reference_month}, usando \${gocMonth}\`);
+      }
+    }
+
     const gocRes = await client.query(`
-      SELECT 
+      SELECT DISTINCT ON (gii.phone_number)
         gii.phone_number,
         gii.cost_center_id,
         gii.cost_center_code,
@@ -57,8 +76,8 @@ async function processAllocation(vivoAccountId, options = {}) {
       WHERE gi.reference_month = $1
         AND gii.is_valid = TRUE
         AND (gii.active IS NULL OR gii.active = TRUE)
-      ORDER BY gii.phone_number
-    `, [account.reference_month]);
+      ORDER BY gii.phone_number, gi.reference_month DESC
+    `, [gocMonth]);
 
     // Mapa: número da linha -> centro de custo
     const gocMap = new Map();

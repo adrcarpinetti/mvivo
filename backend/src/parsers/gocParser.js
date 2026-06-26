@@ -29,12 +29,15 @@ async function parseGocFile(fileBuffer, fileName) {
   };
 
   try {
-    // Tenta detectar encoding (Vivo/GOC geralmente usa latin-1)
+    // Detecta e converte encoding corretamente para UTF-8
     let content;
-    try {
+    // Tenta UTF-8 primeiro; se houver caracteres inválidos, usa latin-1
+    const utf8attempt = fileBuffer.toString('utf-8');
+    const hasInvalidUtf8 = utf8attempt.includes('\uFFFD') || /[\x80-\x9F]/.test(utf8attempt);
+    if (hasInvalidUtf8) {
       content = iconv.decode(fileBuffer, 'latin1');
-    } catch {
-      content = fileBuffer.toString('utf-8');
+    } else {
+      content = utf8attempt;
     }
 
     const lines = content.split(/\r?\n/).filter(l => l.trim().length > 0);
