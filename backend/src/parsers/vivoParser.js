@@ -204,7 +204,14 @@ async function parseVivoFile(fileBuffer, fileName) {
       result.warnings.push({ message: 'Total da conta (059A) não encontrado — usando soma das linhas.' });
     }
 
-    logger.info(`Vivo parsed OK: ${result.lines.length} linhas, R$ ${result.totalAmount.toFixed(2)}`);
+    // Fallback de vencimento: dia 17 do mês seguinte ao período de referência
+    if (!result.dueDate && result.referenceMonth) {
+      const ref = new Date(result.referenceMonth + '-15');
+      ref.setMonth(ref.getMonth() + 1);
+      result.dueDate = ref.getFullYear() + '-' + String(ref.getMonth() + 1).padStart(2,'0') + '-17';
+    }
+
+    logger.info('Vivo parsed OK: ' + result.lines.length + ' linhas, R$ ' + result.totalAmount.toFixed(2) + (result.dueDate ? ', venc=' + result.dueDate : ''));
 
   } catch (err) {
     logger.error('Erro ao parsear arquivo Vivo', { error: err.message });
