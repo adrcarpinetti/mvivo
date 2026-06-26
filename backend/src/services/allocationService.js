@@ -17,20 +17,24 @@ const logger = require('../utils/logger');
 async function processAllocation(vivoAccountId, options = {}) {
   const { simulate = false, userId } = options;
 
-  logger.info(`Starting allocation for account ${vivoAccountId}, simulate: ${simulate}`);
+  logger.info('Starting allocation for account ' + vivoAccountId + ', simulate: ' + simulate);
 
   return await withTransaction(async (client) => {
+    try {
     // 1. Carrega a conta Vivo
+    logger.info('Step 1: loading account ' + vivoAccountId);
     const accountRes = await client.query(
       'SELECT * FROM vivo_accounts WHERE id = $1',
       [vivoAccountId]
     );
     if (accountRes.rows.length === 0) {
-      throw new Error('Conta Vivo não encontrada');
+      throw new Error('Conta Vivo não encontrada: ' + vivoAccountId);
     }
     const account = accountRes.rows[0];
+    logger.info('Step 1 OK: ' + account.account_number + ' ' + account.reference_month);
 
     // 2. Carrega os itens da fatura agrupados por linha (apenas total mensal por linha)
+    logger.info('Step 2: loading invoice items');
     const itemsRes = await client.query(`
       SELECT DISTINCT ON (vii.line_number)
         vii.line_number,
@@ -43,8 +47,10 @@ async function processAllocation(vivoAccountId, options = {}) {
       ORDER BY vii.line_number, vii.amount DESC
     `, [vivoAccountId]);
 
+    logger.info('Step 2 OK: ' + itemsRes.rows.length + ' items');
     // 3. Carrega o mapeamento GOC para o mês da conta
     // Busca GOC do mês da conta; se não houver, usa o mais recente disponível
+    logger.info('Step 3: loading GOC mapping');
     const gocMonthRes = await client.query(`
       SELECT id, reference_month FROM goc_imports
       WHERE reference_month = $1
@@ -79,6 +85,7 @@ async function processAllocation(vivoAccountId, options = {}) {
       ORDER BY gii.phone_number, gi.reference_month DESC
     `, [gocMonth]);
 
+    logger.info('Step 3 OK: ' + gocRes.rows.length + ' GOC entries for month ' + gocMonth);
     // Mapa: número da linha -> centro de custo
     const gocMap = new Map();
     for (const row of gocRes.rows) {
@@ -125,7 +132,9 @@ async function processAllocation(vivoAccountId, options = {}) {
       }
     }
 
+    logger.info('Step 4 OK: withCC=' + allocationData.withCC.length + ' withoutCC=' + allocationData.withoutCC.length);
     // 5. Carrega centros de custo ativos
+    logger.info('Step 5: loading cost centers');
     const ccRes = await client.query(
       'SELECT * FROM cost_centers WHERE active = TRUE ORDER BY code'
     );
@@ -240,7 +249,12 @@ async function processAllocation(vivoAccountId, options = {}) {
       `, [userId, vivoAccountId.toString(), `Rateio processado para ${account.reference_month}`]);
     }
 
+    logger.info('Allocation complete: totalAmount=' + allocationResult.totalAmount + ' items=' + allocationResult.items.length);
     return allocationResult;
+    } catch(innerErr) {
+      logger.error('Allocation inner error: ' + innerErr.message + '\n' + innerErr.stack);
+      throw innerErr;
+    }
   });
 }
 
