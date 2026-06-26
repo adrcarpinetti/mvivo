@@ -58,16 +58,20 @@ async function processAllocation(vivoAccountId, options = {}) {
 
     logger.info('Step 2 OK: ' + itemsRes.rows.length + ' items');
 
-    // Busca cobranças extras (não por linha) para incluir no rateio
+    // Busca extras e ajustes (não por linha) para incluir no rateio
     const extrasRes = await client.query(`
-      SELECT COALESCE(SUM(amount), 0) AS extra_total
+      SELECT item_category, COALESCE(SUM(amount),0) AS total
       FROM vivo_invoice_items
-      WHERE vivo_account_id = $1 AND item_category = 'extra_charge'
+      WHERE vivo_account_id = $1 AND item_category IN ('extra_charge','adjustment')
+      GROUP BY item_category
     `, [vivoAccountId]);
-    const extraTotal = parseFloat(extrasRes.rows[0]?.extra_total || 0);
-    if (extraTotal > 0) {
-      logger.info('Extra charges found: R$ ' + extraTotal.toFixed(2));
+    let extraTotal = 0, adjustTotal = 0;
+    for (const r of extrasRes.rows) {
+      if (r.item_category === 'extra_charge') extraTotal = parseFloat(r.total);
+      if (r.item_category === 'adjustment')   adjustTotal = parseFloat(r.total);
     }
+    const netExtra = extraTotal + adjustTotal; // extras líquidos (adjustment é negativo)
+    if (netExtra !== 0) logger.info('Extras: ' + extraTotal.toFixed(2) + ' adj: ' + adjustTotal.toFixed(2) + ' net: ' + netExtra.toFixed(2));
     // 3. Carrega o mapeamento GOC para o mês da conta
     // Busca GOC do mês da conta; se não houver, usa o mais recente disponível
     logger.info('Step 3: loading GOC mapping');
@@ -158,10 +162,10 @@ async function processAllocation(vivoAccountId, options = {}) {
       }
     }
 
-    // Adiciona cobranças extras ao valor não alocado (serão distribuídas pela regra)
-    if (extraTotal > 0) {
-      allocationData.totalUnallocated += extraTotal;
-      allocationData.withoutCC.push({ phone: '__extra__', amount: extraTotal });
+    // Adiciona extras líquidos ao valor não alocado
+    if (netExtra !== 0) {
+      allocationData.totalUnallocated += netExtra;
+      if (netExtra > 0) allocationData.withoutCC.push({ phone: '__extra__', amount: netExtra });
     }
     logger.info('Step 4 OK: withCC=' + allocationData.withCC.length + ' withoutCC=' + allocationData.withoutCC.length + ' extras=' + extraTotal.toFixed(2));
     // 5. Carrega centros de custo ativos
