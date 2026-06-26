@@ -1690,17 +1690,26 @@ function AllocationsPage() {
               )
             ),
             React.createElement('tbody', null,
-              (modalData.items || []).map(item =>
-                React.createElement('tr', { key: item.id },
-                  React.createElement('td', { className: 'td-mono' }, item.code),
-                  React.createElement('td', null, item.name),
-                  React.createElement('td', { className: 'td-num' }, item.direct_line_count),
-                  React.createElement('td', { className: 'td-num' }, fmt.currency(item.direct_amount)),
-                  React.createElement('td', { className: 'td-num' }, fmt.currency(item.allocated_amount)),
-                  React.createElement('td', { className: 'td-num', style: { fontWeight: 700 } }, fmt.currency(item.total_amount)),
-                  React.createElement('td', { className: 'td-num' }, fmt.pct(item.allocation_percentage))
-                )
-              )
+              (modalData.items || []).map((item, idx) => {
+                const code  = item.code || item.cost_center_code || item.costCenterCode || '—';
+                const name  = item.name || item.cost_center_name || item.costCenterName || '—';
+                const lines = item.direct_line_count ?? item.lineCount ?? item.directLineCount ?? '—';
+                const dir   = item.direct_amount   ?? item.directAmount   ?? 0;
+                const rat   = item.allocated_amount ?? item.allocatedAmount ?? 0;
+                const tot   = item.total_amount    ?? item.totalAmount    ?? (dir + rat);
+                const pctV  = item.allocation_percentage != null ? item.allocation_percentage
+                              : (modalData.allocation?.total_allocated_amount > 0
+                                 ? (tot / modalData.allocation.total_allocated_amount * 100) : 0);
+                return React.createElement('tr', { key: item.id || idx },
+                  React.createElement('td', { className: 'td-mono' }, code),
+                  React.createElement('td', null, name),
+                  React.createElement('td', { className: 'td-num' }, lines),
+                  React.createElement('td', { className: 'td-num' }, fmt.currency(dir)),
+                  React.createElement('td', { className: 'td-num' }, fmt.currency(rat)),
+                  React.createElement('td', { className: 'td-num', style: { fontWeight: 700 } }, fmt.currency(tot)),
+                  React.createElement('td', { className: 'td-num' }, fmt.pct(pctV))
+                );
+              })
             )
           )
         ),
@@ -2978,19 +2987,25 @@ function SimulationPage() {
           ),
           React.createElement('tbody', null,
             simResult.items.map((item, i) => {
-              const pct = simResult.totalAllocated
-                ? ((item.totalAmount / simResult.totalAllocated) * 100).toFixed(1)
+              const pct = simResult.totalAllocated && tot
+                ? ((tot / simResult.totalAllocated) * 100).toFixed(1)
                 : '0.0';
+              const ccN = item.costCenterName || item.cost_center_name || item.name || '—';
+              const ccC = item.costCenterCode || item.cost_center_code || item.code || '—';
+              const nL  = item.lineCount ?? item.direct_line_count ?? item.directLineCount ?? 0;
+              const dir = item.directAmount  ?? item.direct_amount  ?? 0;
+              const rat = item.allocatedAmount ?? item.allocated_amount ?? 0;
+              const tot = item.totalAmount ?? item.total_amount ?? (dir + rat);
               return React.createElement('tr', { key: i },
                 React.createElement('td', null,
-                  React.createElement('div', { style: { fontWeight: 500 } }, item.costCenterName || item.cost_center_name),
-                  React.createElement('small', { className: 'text-muted' }, item.costCenterCode || item.cost_center_code)
+                  React.createElement('div', { style: { fontWeight: 500 } }, ccN),
+                  React.createElement('small', { className: 'text-muted' }, ccC)
                 ),
-                React.createElement('td', null, item.lineCount || 0),
-                React.createElement('td', null, fmt.currency(item.directAmount || 0)),
-                React.createElement('td', null, fmt.currency(item.allocatedAmount || 0)),
+                React.createElement('td', null, nL),
+                React.createElement('td', null, fmt.currency(dir)),
+                React.createElement('td', null, fmt.currency(rat)),
                 React.createElement('td', { style: { fontWeight: 700, color: 'var(--brand-primary)' } },
-                  fmt.currency(item.totalAmount || 0)
+                  fmt.currency(tot)
                 ),
                 React.createElement('td', null,
                   React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: 6 } },
