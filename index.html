@@ -2993,15 +2993,14 @@ function SimulationPage() {
           ),
           React.createElement('tbody', null,
             simResult.items.map((item, i) => {
-              const pct = simResult.totalAllocated && tot
-                ? ((tot / simResult.totalAllocated) * 100).toFixed(1)
-                : '0.0';
               const ccN = item.costCenterName || item.cost_center_name || item.name || '—';
               const ccC = item.costCenterCode || item.cost_center_code || item.code || '—';
               const nL  = item.lineCount ?? item.direct_line_count ?? item.directLineCount ?? 0;
-              const dir = item.directAmount  ?? item.direct_amount  ?? 0;
-              const rat = item.allocatedAmount ?? item.allocated_amount ?? 0;
-              const tot = item.totalAmount ?? item.total_amount ?? (dir + rat);
+              const dir = parseFloat(item.directAmount  ?? item.direct_amount  ?? 0) || 0;
+              const rat = parseFloat(item.allocatedAmount ?? item.allocated_amount ?? 0) || 0;
+              const tot2 = parseFloat(item.totalAmount ?? item.total_amount ?? (dir + rat)) || 0;
+              const totalAl = parseFloat(simResult.totalAllocated || simResult.totalAllocatedAmount || 0) || 1;
+              const pct = tot2 > 0 ? ((tot2 / totalAl) * 100).toFixed(1) : '0.0';
               return React.createElement('tr', { key: i },
                 React.createElement('td', null,
                   React.createElement('div', { style: { fontWeight: 500 } }, ccN),
@@ -3011,7 +3010,7 @@ function SimulationPage() {
                 React.createElement('td', null, fmt.currency(dir)),
                 React.createElement('td', null, fmt.currency(rat)),
                 React.createElement('td', { style: { fontWeight: 700, color: 'var(--brand-primary)' } },
-                  fmt.currency(tot)
+                  fmt.currency(tot2)
                 ),
                 React.createElement('td', null,
                   React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: 6 } },
@@ -3023,7 +3022,7 @@ function SimulationPage() {
                     },
                       React.createElement('div', {
                         style: {
-                          width: `${Math.min(100, parseFloat(pct))}%`,
+                          width: `${Math.min(100, parseFloat(pct) || 0)}%`,
                           height: '100%',
                           background: 'var(--brand-primary)',
                           borderRadius: 3,

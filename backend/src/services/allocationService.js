@@ -66,14 +66,20 @@ async function processAllocation(vivoAccountId, options = {}) {
       ORDER BY created_at DESC LIMIT 1
     `, [account.reference_month]);
 
-    let gocMonth = account.reference_month;
+    // Normaliza datas para string YYYY-MM-DD
+    const toDateStr = (v) => {
+      if (!v) return null;
+      if (v instanceof Date) return v.toISOString().substring(0, 10);
+      return String(v).substring(0, 10);
+    };
+
+    let gocMonth = toDateStr(account.reference_month);
     if (gocMonthRes.rows.length === 0) {
-      // Fallback: GOC mais recente
       const latestGoc = await client.query(
         'SELECT reference_month FROM goc_imports ORDER BY reference_month DESC LIMIT 1'
       );
       if (latestGoc.rows.length > 0) {
-        gocMonth = latestGoc.rows[0].reference_month;
+        gocMonth = toDateStr(latestGoc.rows[0].reference_month);
         logger.warn('GOC não encontrado para ' + account.reference_month + ', usando ' + gocMonth);
       }
     }
