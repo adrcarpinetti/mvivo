@@ -76,6 +76,7 @@ async function parseVivoFile(fileBuffer, fileName) {
         const segment  = row.substring(105, 120).trim();
         const desc     = row.substring(120, 165).trim();
         const valStr   = row.substring(165, 195).trim();
+        const descStr  = row.length > 165 ? row.substring(120, 165).trim() : '';
 
         if (!result.accountNumber && account && /^\d{5,}$/.test(account)) {
           result.accountNumber = account;
@@ -121,6 +122,45 @@ async function parseVivoFile(fileBuffer, fileName) {
               lineNumber: null, subscriptionCode: null,
               segmentCode: segment, category: 'extra_charge',
               description: 'Cobrança extra (não por linha)', amount: v,
+            });
+          }
+        }
+
+        // ── parcela de aparelho (225D) ───────────────────────────────
+        if (segment.startsWith('225D') && isPhone(phone)) {
+          const v = parseMonetary(valStr);
+          if (v !== null && v > 0) {
+            ensureLine(lineMap, phone, subscr);
+            lineMap.get(phone).installmentAmount = (lineMap.get(phone).installmentAmount || 0) + v;
+            result.rawItems.push({
+              lineNumber: phone, subscriptionCode: subscr || null,
+              segmentCode: segment, category: 'installment',
+              description: descStr || 'Parcela de aparelho', amount: v,
+            });
+          }
+        }
+
+        // ── consumo (510T = total de consumo por linha) ───────────────
+        if (segment.startsWith('510T') && isPhone(phone)) {
+          const v = parseMonetary(valStr);
+          if (v !== null && v > 0) {
+            ensureLine(lineMap, phone, subscr);
+            result.rawItems.push({
+              lineNumber: phone, subscriptionCode: subscr || null,
+              segmentCode: segment, category: 'consumption',
+              description: 'Consumo (chamadas/dados/SMS)', amount: v,
+            });
+          }
+        }
+
+        // ── desconto / multa / ajuste (162D, 164A) ───────────────────
+        if ((segment === '162D' || segment === '164A' || segment === '162T') && !isPhone(phone)) {
+          const v = parseMonetary(valStr);
+          if (v !== null && v !== 0) {
+            result.rawItems.push({
+              lineNumber: null, subscriptionCode: null,
+              segmentCode: segment, category: 'adjustment',
+              description: segment === '162D' ? 'Desconto/crédito' : 'Ajuste/multa', amount: v,
             });
           }
         }
