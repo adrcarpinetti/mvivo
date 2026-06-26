@@ -193,19 +193,43 @@ router.get('/:id/reconciliation', authenticate, async (req, res) => {
       ORDER BY line_number, amount DESC
     `, [vivo_account_id]);
 
-    // Linhas no GOC — busca pelo mês exato, sem filtrar por account_number
-    // (o GOC pode não ter o campo NUMERO_CONTA preenchido)
-    const gocLines = await query(`
+    // Linhas no GOC para o mês (filtra por account_number se disponível)
+    // Usa as linhas Vivo como âncora — só busca no GOC os números que aparecem na Vivo
+    // OU que têm o mesmo account_number
+    const vivoPhones = vivoLines.rows.map(r => r.line_number?.replace(/\D/g, '')).filter(Boolean);
+
+    const gocLines = vivoPhones.length > 0
+      ? await query(`
+          SELECT DISTINCT ON (gii.phone_number)
+            gii.phone_number, gii.cost_center_code, gii.cost_center_name, gii.employee_name
+          FROM goc_import_items gii
+          JOIN goc_imports gi ON gi.id = gii.goc_import_id
+          WHERE gi.reference_month = $1
+            AND gii.phone_number = ANY($2)
+          ORDER BY gii.phone_number, gii.id DESC
+        `, [reference_month, vivoPhones])
+      : { rows: [] };
+
+    // Também busca linhas do GOC com o mesmo account_number (para detectar "só no GOC")
+    const gocByAccount = account_number ? await query(`
       SELECT DISTINCT ON (gii.phone_number)
         gii.phone_number, gii.cost_center_code, gii.cost_center_name, gii.employee_name
       FROM goc_import_items gii
       JOIN goc_imports gi ON gi.id = gii.goc_import_id
       WHERE gi.reference_month = $1
+        AND gii.account_number = $2
       ORDER BY gii.phone_number, gii.id DESC
-    `, [reference_month]);
+    `, [reference_month, account_number]) : { rows: [] };
+
+    // Merge: GOC por telefone + GOC por conta
+    const gocAllPhones = new Set([
+      ...gocLines.rows.map(r => r.phone_number),
+      ...gocByAccount.rows.map(r => r.phone_number),
+    ]);
+    const gocAllRows = [...gocLines.rows, ...gocByAccount.rows.filter(r => !gocLines.rows.find(g => g.phone_number === r.phone_number))];
 
     const vivoSet = new Set(vivoLines.rows.map(r => r.line_number?.replace(/\D/g, '')));
-    const gocMap = new Map(gocLines.rows.map(r => [r.phone_number?.replace(/\D/g, ''), r]));
+    const gocMap = new Map(gocAllRows.map(r => [r.phone_number?.replace(/\D/g, ''), r]));
 
     const inBoth = [];
     const inVivoOnly = [];
@@ -220,9 +244,11 @@ router.get('/:id/reconciliation', authenticate, async (req, res) => {
       }
     }
 
-    for (const [phone, gocData] of gocMap) {
-      if (!vivoSet.has(phone)) {
-        inGocOnly.push({ phone, ...gocData });
+    // Linhas no GOC da mesma conta mas ausentes na Vivo
+    for (const r of gocByAccount.rows) {
+      const phone = r.phone_number?.replace(/\D/g, '');
+      if (phone && !vivoSet.has(phone)) {
+        inGocOnly.push({ phone, ...r });
       }
     }
 
