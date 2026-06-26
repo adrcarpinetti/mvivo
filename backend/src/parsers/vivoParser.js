@@ -105,9 +105,11 @@ async function parseVivoFile(fileBuffer, fileName) {
           }
         }
 
-        // ── cobranças extras (não por linha): 190T, 195A ─────────────
-        if ((segment === '190T' || segment === '195A') && !isPhone(phone)) {
-          // 190T/195A: valor está em posições 165-195 OU 180-210 dependendo do arquivo
+        // ── cobranças extras (não por linha): apenas 190T ────────────
+        // 190T = total de cobranças extras da conta
+        // 195A = valor líquido (mesmo número, ignorar para não duplicar)
+        if (segment === '190T' && !isPhone(phone)) {
+          // 190T: valor está em posição 180-195 (não 165-195)
           let v = parseMonetary(valStr); // 165-195
           if (v === null || v === 0) {
             const altVal = row.length > 195 ? row.substring(180, 210).trim() : '';
