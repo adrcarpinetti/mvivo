@@ -242,29 +242,46 @@ router.get('/:id/reconciliation', authenticate, async (req, res) => {
       number: l.phone, amount: parseFloat(l.vivoAmount || 0)
     }));
 
+    const fmtPhone = (p) => {
+      if (!p) return p;
+      const d = p.replace(/\D/g, '');
+      if (d.length === 11) return `(${d.slice(0,2)}) ${d.slice(2,7)}-${d.slice(7)}`;
+      if (d.length === 10) return `(${d.slice(0,2)}) ${d.slice(2,6)}-${d.slice(6)}`;
+      return p;
+    };
+
     res.json({
       totalVivo,
       totalAllocated,
-      difference: 0,
-      linesWithoutCC,
-      onlyInVivo: inVivoOnly.map(l => ({ number: l.phone, amount: parseFloat(l.vivoAmount || 0) })),
+      difference: totalVivo - totalAllocated,
+      linesWithoutCC: linesWithoutCC.map(l => ({ ...l, number: fmtPhone(l.number) || l.number })),
+      onlyInVivo: inVivoOnly.map(l => ({ number: fmtPhone(l.phone) || l.phone, amount: parseFloat(l.vivoAmount || 0) })),
       onlyInGOC: inGocOnly.map(l => ({
-        number: l.phone,
+        number: fmtPhone(l.phone) || l.phone,
         employee: l.employee_name,
-        costCenter: l.cost_center_code
+        costCenter: l.cost_center_code ? `${l.cost_center_code} — ${l.cost_center_name || ''}` : null,
       })),
       lines: [
         ...inBoth.map(l => ({
-          number: l.phone,
-          employee: l.employee_name,
-          costCenter: l.cost_center_code,
+          number: fmtPhone(l.phone) || l.phone,
+          employee: l.employee_name || '—',
+          costCenter: l.cost_center_code
+            ? `${l.cost_center_code} — ${l.cost_center_name || ''}`.trim().replace(/—\s*$/, '')
+            : null,
           vivoAmount: parseFloat(l.vivoAmount || 0),
-          status: l.cost_center_code ? 'matched' : 'no_cc'
+          status: l.cost_center_code ? 'matched' : 'no_cc',
         })),
         ...inVivoOnly.map(l => ({
-          number: l.phone, vivoAmount: parseFloat(l.vivoAmount || 0), status: 'only_vivo'
+          number: fmtPhone(l.phone) || l.phone,
+          employee: '—',
+          costCenter: null,
+          vivoAmount: parseFloat(l.vivoAmount || 0),
+          status: 'only_vivo',
         })),
-      ]
+      ].sort((a, b) => {
+        const order = { matched: 0, no_cc: 1, only_vivo: 2 };
+        return (order[a.status] || 0) - (order[b.status] || 0);
+      })
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
