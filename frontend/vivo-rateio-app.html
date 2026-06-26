@@ -1786,7 +1786,7 @@ function AllocationsPage() {
         React.createElement('table', null,
           React.createElement('thead', null,
             React.createElement('tr', null,
-              ['Conta', 'Empresa', 'Mês', 'Total Fatura', 'Total Rateado', 'Diferença', 'Linhas', 'Sem CC', 'Status', 'Ações'].map(h =>
+              ['Conta', 'Empresa', 'Mês', 'Vencimento', 'Total Fatura', 'Total Rateado', 'Diferença', 'Linhas', 'Sem CC', 'Status', 'Ações'].map(h =>
                 React.createElement('th', { key: h }, h)
               )
             )
@@ -1794,7 +1794,7 @@ function AllocationsPage() {
           React.createElement('tbody', null,
             filtered.length === 0
               ? React.createElement('tr', null,
-                  React.createElement('td', { colSpan: 9, style: { textAlign: 'center', padding: 32, color: 'var(--text-muted)' } },
+                  React.createElement('td', { colSpan: 10, style: { textAlign: 'center', padding: 32, color: 'var(--text-muted)' } },
                     'Nenhuma conta importada. Vá para Importação para adicionar arquivos.'
                   )
                 )
@@ -1814,6 +1814,25 @@ function AllocationsPage() {
                     React.createElement('td', { className: 'td-mono' }, acc.account_number),
                     React.createElement('td', null, acc.company_name || '-'),
                     React.createElement('td', null, mes),
+                    React.createElement('td', {
+                      style: { cursor: 'pointer', fontSize: 12 },
+                      title: 'Clique para editar vencimento',
+                      onClick: async () => {
+                        const cur = acc.due_date ? acc.due_date.substring(0,10) : '';
+                        const val = window.prompt('Vencimento (YYYY-MM-DD):', cur);
+                        if (val === null) return;
+                        try {
+                          await api.put('/allocations/due-date/' + (acc.id || acc.vivo_account_id), { due_date: val || null });
+                          loadData();
+                        } catch(e) { alert('Erro: ' + e.message); }
+                      }
+                    },
+                      acc.due_date
+                        ? React.createElement('span', {
+                            style: { color: acc.due_date.substring(0,10) < new Date().toISOString().substring(0,10) ? '#dc2626' : 'var(--text-primary)' }
+                          }, new Date(acc.due_date + 'T12:00:00').toLocaleDateString('pt-BR'))
+                        : React.createElement('span', { style: { color: 'var(--text-muted)', fontSize: 11 } }, '+ add')
+                    ),
                     React.createElement('td', { className: 'td-num' }, fmt.currency(totalFatura)),
                     React.createElement('td', { className: 'td-num' },
                       totalRateado

@@ -52,6 +52,7 @@ router.get('/', authenticate, async (req, res) => {
         va.reference_month,
         va.total_amount,
         va.status,
+        va.due_date,
         ma.id              AS allocation_id,
         ma.total_invoice_amount,
         ma.total_allocated_amount,
@@ -86,6 +87,20 @@ router.post('/process', authenticate, requirePermission('allocate'), async (req,
       message: simulate ? 'Simulação concluída' : 'Rateio processado com sucesso',
       ...result,
     });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/allocations/due-date/:id — Atualiza vencimento da conta
+router.put('/due-date/:id', authenticate, async (req, res) => {
+  try {
+    const { due_date } = req.body;
+    await query(
+      'UPDATE vivo_accounts SET due_date = $1 WHERE id = $2',
+      [due_date || null, req.params.id]
+    );
+    res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
