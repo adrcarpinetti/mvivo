@@ -2011,6 +2011,25 @@ function RulesPage() {
           React.createElement('div', { className: 'modal-title' }, 'Nova Regra de Rateio'),
           React.createElement('button', { className: 'modal-close', onClick: () => setShowForm(false) }, '×')
         ),
+        // Campo: Conta Vinculada
+        React.createElement('div', { className: 'form-group' },
+          React.createElement('label', { className: 'form-label' }, 'Conta Vinculada'),
+          React.createElement('div', { style: { display: 'flex', gap: 8, alignItems: 'center' } },
+            React.createElement('input', {
+              type: 'text', className: 'form-control',
+              placeholder: 'Número da conta (ex: 0454705224) — vazio = global',
+              value: form.account_number || '',
+              onChange: e => setForm(f => ({ ...f, account_number: e.target.value || null }))
+            }),
+            React.createElement('span', {
+              className: form.account_number ? 'badge badge-info' : 'badge badge-gray',
+              style: { whiteSpace: 'nowrap' }
+            }, form.account_number ? 'Conta específica' : 'Global')
+          ),
+          React.createElement('div', { style: { fontSize: 11, color: 'var(--text-muted)', marginTop: 4 } },
+            'Deixe vazio para aplicar a todas as contas sem regra específica'
+          )
+        ),
         React.createElement('div', { className: 'form-group' },
           React.createElement('label', { className: 'form-label' }, 'Nome da Regra'),
           React.createElement('input', {
