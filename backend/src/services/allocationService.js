@@ -268,18 +268,7 @@ async function processAllocation(vivoAccountId, options = {}) {
       rulesApplied: rules.map(r => ({ id: r.id, name: r.name, type: r.rule_type })),
     };
 
-    if (!simulate) {
-      // Salva o rateio no banco
-      await saveAllocation(client, allocationResult, userId);
-      
-      // Registra log de auditoria
-      await client.query(`
-        INSERT INTO audit_logs (user_id, action, entity_type, entity_id, description)
-        VALUES ($1, 'allocation_processed', 'vivo_account', $2, $3)
-      `, [userId, vivoAccountId.toString(), `Rateio processado para ${account.reference_month}`]);
-    }
-
-    // Ajuste final: se total rateado > total fatura, reduzir proporcionalmente
+    // Ajuste: se total rateado > total fatura, reduzir proporcionalmente ANTES de salvar
     const invoiceTotal = parseFloat(account.total_amount || 0);
     if (invoiceTotal > 0 && allocationResult.totalAmount > invoiceTotal + 0.01) {
       const ratio = invoiceTotal / allocationResult.totalAmount;
@@ -291,6 +280,18 @@ async function processAllocation(vivoAccountId, options = {}) {
       }
       allocationResult.totalAmount = invoiceTotal;
       allocationResult.totalAllocatedAmount = invoiceTotal;
+      allocationResult.difference = 0;
+    }
+
+    if (!simulate) {
+      // Salva o rateio no banco (já com valores ajustados)
+      await saveAllocation(client, allocationResult, userId);
+      
+      // Registra log de auditoria
+      await client.query(`
+        INSERT INTO audit_logs (user_id, action, entity_type, entity_id, description)
+        VALUES ($1, 'allocation_processed', 'vivo_account', $2, $3)
+      `, [userId, vivoAccountId.toString(), `Rateio processado para ${account.reference_month}`]);
     }
 
     logger.info('Allocation complete: totalAmount=' + allocationResult.totalAmount + ' items=' + allocationResult.items.length);
