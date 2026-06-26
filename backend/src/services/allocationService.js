@@ -282,15 +282,15 @@ async function applyAllocationRules(withoutCC, withCC, costCenters, rules, total
   const results = [];
 
   // Encontra a regra mais prioritária aplicável
-  const applicableRule = rules.find(r => 
-    r.active && r.applies_to === 'unallocated'
-  );
+  // Aceita qualquer applies_to — prioriza 'unallocated' mas aceita 'all' também
+  const applicableRule = rules.find(r => r.active) || null;
 
   if (!applicableRule) {
     // Sem regra: distribui proporcionalmente por linhas
     logger.warn('No allocation rule found, using proportional by line count as default');
     return distributeProportionalByLines(withCC, costCenters, totalUnallocated, null);
   }
+  logger.info('Applying rule: ' + applicableRule.name + ' (' + applicableRule.rule_type + ') for unallocated=' + totalUnallocated);
 
   switch (applicableRule.rule_type) {
     case 'proportional_lines':
