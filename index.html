@@ -1058,18 +1058,27 @@ function LoginPage() {
 function DashboardPage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [filterMonth, setFilterMonth] = useState('');
   const year = new Date().getFullYear();
 
-  useEffect(() => {
-    api.get(`/reports/dashboard?year=${year}`)
-      .then(setData).catch(console.error).finally(() => setLoading(false));
-  }, []);
+  const load = (month = '') => {
+    setLoading(true);
+    const url = month
+      ? `/reports/dashboard?year=${year}&month=${month}`
+      : `/reports/dashboard?year=${year}`;
+    api.get(url).then(setData).catch(console.error).finally(() => setLoading(false));
+  };
+
+  useEffect(() => { load(); }, []);
 
   if (loading) return React.createElement('div', { style: { padding: 40, textAlign: 'center' } }, React.createElement(Spinner));
 
   const kpis = data?.kpis || {};
   const monthly = data?.monthlyEvolution || [];
   const topCC = data?.topCostCenters || [];
+
+  // Meses disponíveis a partir dos dados de evolução
+  const availableMonths = monthly.map(m => m.month?.substring(0, 7)).filter(Boolean);
 
   const aggKpis = (() => {
     const fromMonthly = {
@@ -1086,6 +1095,34 @@ function DashboardPage() {
   const COLORS = ['#1a1f6e','#c900a1','#6e1a7e','#2563eb','#059669','#d97706','#dc2626','#8b5cf6'];
 
   return React.createElement('div', { className: 'page' },
+
+    // Filtro de mês
+    React.createElement('div', { className: 'flex-between mb-16' },
+      React.createElement('div', { style: { display: 'flex', gap: 8, alignItems: 'center' } },
+        React.createElement('label', { style: { fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)' } }, 'Filtrar por mês:'),
+        React.createElement('select', {
+          className: 'input', style: { width: 160 },
+          value: filterMonth,
+          onChange: e => { setFilterMonth(e.target.value); load(e.target.value); }
+        },
+          React.createElement('option', { value: '' }, 'Todos os meses'),
+          availableMonths.map(m =>
+            React.createElement('option', { key: m, value: m },
+              new Date(m + '-15').toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
+                .replace(/^\w/, c => c.toUpperCase())
+            )
+          )
+        ),
+        filterMonth && React.createElement('button', {
+          className: 'btn btn-ghost', style: { fontSize: 12 },
+          onClick: () => { setFilterMonth(''); load(''); }
+        }, '✕ Limpar')
+      ),
+      React.createElement('div', { style: { fontSize: 12, color: 'var(--text-muted)' } },
+        filterMonth ? `Exibindo: ${new Date(filterMonth + '-15').toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}` : `Ano ${year} — todos os meses`
+      )
+    ),
+
     // KPIs
     React.createElement('div', { className: 'kpi-grid' },
       React.createElement('div', { className: 'kpi-card kpi-card-accent' },

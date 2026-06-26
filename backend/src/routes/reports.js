@@ -7,7 +7,11 @@ const router = express.Router();
 // GET /api/reports/dashboard - Dados para o dashboard principal
 router.get('/dashboard', authenticate, async (req, res) => {
   try {
-    const { year = new Date().getFullYear() } = req.query;
+    const { year = new Date().getFullYear(), month } = req.query;
+
+    // Filtro de mês: se informado, filtra só aquele mês
+    const monthFilter = month ? `AND TO_CHAR(va.reference_month, 'YYYY-MM') = '${month}'` : '';
+    const monthFilterMA = month ? `AND TO_CHAR(ma.reference_month, 'YYYY-MM') = '${month}'` : '';
 
     // Totais por mês no ano — inclui contas Vivo importadas mesmo sem rateio
     const monthlyTotals = await query(`
@@ -21,11 +25,12 @@ router.get('/dashboard', authenticate, async (req, res) => {
       FROM vivo_accounts va
       LEFT JOIN monthly_allocations ma ON ma.vivo_account_id = va.id
       WHERE EXTRACT(YEAR FROM va.reference_month) = $1
+      ${monthFilter}
       GROUP BY TO_CHAR(va.reference_month, 'YYYY-MM-01')
       ORDER BY month
     `, [year]);
 
-    // Top centros de custo — soma do ano atual, top 10 por valor
+    // Top centros de custo — soma do período filtrado
     const topCC = await query(`
       SELECT
         cc.code,
@@ -37,6 +42,7 @@ router.get('/dashboard', authenticate, async (req, res) => {
       JOIN monthly_allocations ma ON ma.id = ai.monthly_allocation_id
       WHERE EXTRACT(YEAR FROM ma.reference_month) = $1
         AND ma.status IN ('confirmed', 'closed')
+        ${monthFilterMA}
       GROUP BY cc.id, cc.code, cc.name
       ORDER BY total_amount DESC
       LIMIT 10
@@ -58,25 +64,32 @@ router.get('/dashboard', authenticate, async (req, res) => {
     `);
 
     // Contas recentes
+    const recentFilter = month ? `AND TO_CHAR(va.reference_month, 'YYYY-MM') = '${month}'` : '';
     const recentAccounts = await query(`
       SELECT va.*, ma.status AS allocation_status, ma.id AS allocation_id
       FROM vivo_accounts va
       LEFT JOIN monthly_allocations ma ON ma.vivo_account_id = va.id
+      WHERE EXTRACT(YEAR FROM va.reference_month) = ${year}
+      ${recentFilter}
       ORDER BY va.reference_month DESC, va.account_number
-      LIMIT 10
+      LIMIT 20
     `);
 
     // KPIs do mês atual
+    const kpiWhere = month
+      ? `WHERE TO_CHAR(reference_month, 'YYYY-MM') = '${month}'`
+      : `WHERE EXTRACT(YEAR FROM reference_month) = ${year}`;
+
     const lastMonthRes = await query(`
-      SELECT 
-        SUM(total_invoice_amount) AS total_invoice,
+      SELECT
+        SUM(total_invoice_amount)   AS total_invoice,
         SUM(total_allocated_amount) AS total_allocated,
-        SUM(total_lines) AS total_lines,
-        SUM(lines_with_cc) AS lines_with_cc,
-        SUM(lines_without_cc) AS lines_without_cc,
-        SUM(lines_in_vivo_not_goc) AS unmatched
+        SUM(total_lines)            AS total_lines,
+        SUM(lines_with_cc)          AS lines_with_cc,
+        SUM(lines_without_cc)       AS lines_without_cc,
+        SUM(lines_in_vivo_not_goc)  AS unmatched
       FROM monthly_allocations
-      WHERE reference_month = (SELECT MAX(reference_month) FROM monthly_allocations)
+      ${kpiWhere}
     `);
 
     res.json({
