@@ -2946,6 +2946,20 @@ function SimulationPage() {
           }, fmt.currency(simResult.difference || 0))
         ),
         React.createElement('div', { className: 'kpi-card' },
+          React.createElement('div', { className: 'kpi-label' }, 'Total de Linhas'),
+          React.createElement('div', { className: 'kpi-value' },
+            (simResult.totalLines || simResult.linesWithCC + simResult.linesWithoutCC || simResult.items?.reduce((s,i) => s + (i.lineCount||0), 0) || 0)
+          ),
+          React.createElement('div', { style: { fontSize: 11, color: 'var(--text-muted)', marginTop: 2 } },
+            (() => {
+              const comCC = simResult.linesWithCC || 0;
+              const semCC = simResult.linesWithoutCC || 0;
+              if (!comCC && !semCC) return null;
+              return comCC + ' com CC' + (semCC ? ' · ' + semCC + ' sem CC' : '');
+            })()
+          )
+        ),
+        React.createElement('div', { className: 'kpi-card' },
           React.createElement('div', { className: 'kpi-label' }, 'Centros de Custo'),
           React.createElement('div', { className: 'kpi-value' }, simResult.items?.length || 0)
         )
