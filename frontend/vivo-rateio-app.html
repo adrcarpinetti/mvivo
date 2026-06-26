@@ -2976,14 +2976,34 @@ function SimulationPage() {
   const [simResult, setSimResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [filterYear, setFilterYear] = useState(String(new Date().getFullYear()));
+  const [filterMonth, setFilterMonth] = useState('');
   const { toast } = useToast();
+
+  const currentYear = new Date().getFullYear();
 
   useEffect(() => {
     api.get('/allocations').then(d => {
-      const pending = (d.accounts || []).filter(a => ['imported','processing','reviewing'].includes(a.status));
-      setAccounts(pending);
+      setAccounts(d.accounts || []);
     });
   }, []);
+
+  // Filtra contas pendentes pelo ano/mês selecionado
+  const filtered = accounts.filter(a => {
+    const ref = a.reference_month?.substring(0, 7) || '';
+    const yearOk = ref.startsWith(filterYear);
+    const monthOk = !filterMonth || ref.endsWith('-' + filterMonth.padStart(2, '0'));
+    const statusOk = !['closed'].includes(a.allocation_status || a.status);
+    return yearOk && monthOk && statusOk;
+  });
+
+  // Meses disponíveis para o ano selecionado
+  const availableMonths = [...new Set(
+    accounts
+      .filter(a => a.reference_month?.startsWith(filterYear))
+      .map(a => a.reference_month?.substring(5, 7))
+      .filter(Boolean)
+  )].sort();
 
   const simulate = async () => {
     if (!selectedId) return toast('Selecione uma conta', 'error');
@@ -3006,7 +3026,7 @@ function SimulationPage() {
       toast('Rateio processado com sucesso!', 'success');
       setSimResult(null);
       setSelectedId('');
-      api.get('/allocations').then(d => setAccounts((d.accounts || []).filter(a => ['imported','processing','reviewing'].includes(a.status))));
+      api.get('/allocations').then(d => setAccounts(d.accounts || []));
     } catch (e) {
       toast(e.message || 'Erro ao confirmar', 'error');
     } finally { setConfirming(false); }
@@ -3022,6 +3042,37 @@ function SimulationPage() {
 
     React.createElement('div', { className: 'card mb-24' },
       React.createElement('div', { style: { fontWeight: 600, marginBottom: 12 } }, 'Selecionar conta para simulação'),
+
+      // Filtros de ano e mês
+      React.createElement('div', { style: { display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12, flexWrap: 'wrap' } },
+        React.createElement('label', { style: { fontSize: 13, color: 'var(--text-secondary)' } }, 'Período:'),
+        React.createElement('select', {
+          className: 'input', style: { width: 100 },
+          value: filterYear,
+          onChange: e => { setFilterYear(e.target.value); setFilterMonth(''); setSelectedId(''); setSimResult(null); }
+        },
+          [currentYear, currentYear-1, currentYear-2].map(y =>
+            React.createElement('option', { key: y, value: String(y) }, y)
+          )
+        ),
+        React.createElement('select', {
+          className: 'input', style: { width: 140 },
+          value: filterMonth,
+          onChange: e => { setFilterMonth(e.target.value); setSelectedId(''); setSimResult(null); }
+        },
+          React.createElement('option', { value: '' }, 'Todos os meses'),
+          availableMonths.map(m => {
+            const label = new Date(`${filterYear}-${m}-15`).toLocaleDateString('pt-BR', { month: 'long' });
+            return React.createElement('option', { key: m, value: m },
+              label.charAt(0).toUpperCase() + label.slice(1));
+          })
+        ),
+        React.createElement('span', { style: { fontSize: 12, color: 'var(--text-muted)' } },
+          `${filtered.length} conta(s) pendente(s)`
+        )
+      ),
+
+      // Select de conta filtrado
       React.createElement('div', { style: { display: 'flex', gap: 12, alignItems: 'flex-end' } },
         React.createElement('div', { className: 'form-group', style: { marginBottom: 0, flex: 1 } },
           React.createElement('select', {
@@ -3029,7 +3080,7 @@ function SimulationPage() {
             onChange: e => { setSelectedId(e.target.value); setSimResult(null); }
           },
             React.createElement('option', { value: '' }, '— Selecione uma conta —'),
-            accounts.map(a =>
+            filtered.map(a =>
               React.createElement('option', { key: a.id, value: a.id },
                 `Conta ${a.account_number} · ${fmt.month(a.reference_month)} · ${fmt.currency(a.total_amount)}`
               )
@@ -3040,8 +3091,10 @@ function SimulationPage() {
           loading ? '⏳ Simulando…' : '▶ Simular'
         )
       ),
-      accounts.length === 0 && React.createElement('p', { className: 'text-muted mt-16', style: { fontSize: 12 } },
-        'Nenhuma conta pendente de rateio. Importe arquivos Vivo primeiro.'
+      filtered.length === 0 && React.createElement('p', { className: 'text-muted mt-12', style: { fontSize: 12 } },
+        accounts.length === 0
+          ? 'Nenhuma conta importada. Importe arquivos Vivo primeiro.'
+          : 'Nenhuma conta pendente para o período selecionado.'
       )
     ),
 
