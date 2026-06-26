@@ -7,11 +7,9 @@ const router = express.Router();
 // GET /api/reports/dashboard - Dados para o dashboard principal
 router.get('/dashboard', authenticate, async (req, res) => {
   try {
-    const { year = new Date().getFullYear(), month } = req.query;
-
-    // Filtro de mês: se informado, filtra só aquele mês
-    const monthFilter = month ? `AND TO_CHAR(va.reference_month, 'YYYY-MM') = '${month}'` : '';
-    const monthFilterMA = month ? `AND TO_CHAR(ma.reference_month, 'YYYY-MM') = '${month}'` : '';
+    const { year = new Date().getFullYear() } = req.query;
+    const monthFilter = '';
+    const monthFilterMA = '';
 
     // Totais por mês no ano — inclui contas Vivo importadas mesmo sem rateio
     const monthlyTotals = await query(`
@@ -64,7 +62,7 @@ router.get('/dashboard', authenticate, async (req, res) => {
     `);
 
     // Contas recentes
-    const recentFilter = month ? `AND TO_CHAR(va.reference_month, 'YYYY-MM') = '${month}'` : '';
+    const recentFilter = '';
     const recentAccounts = await query(`
       SELECT va.*, ma.status AS allocation_status, ma.id AS allocation_id
       FROM vivo_accounts va
@@ -76,9 +74,7 @@ router.get('/dashboard', authenticate, async (req, res) => {
     `);
 
     // KPIs do mês atual
-    const kpiWhere = month
-      ? `WHERE TO_CHAR(reference_month, 'YYYY-MM') = '${month}'`
-      : `WHERE EXTRACT(YEAR FROM reference_month) = ${year}`;
+    const kpiWhere = `WHERE EXTRACT(YEAR FROM reference_month) = ${year}`;
 
     const lastMonthRes = await query(`
       SELECT

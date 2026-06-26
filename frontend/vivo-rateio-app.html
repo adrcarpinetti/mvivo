@@ -1058,18 +1058,17 @@ function LoginPage() {
 function DashboardPage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [filterMonth, setFilterMonth] = useState('');
-  const year = new Date().getFullYear();
+  const currentYear = new Date().getFullYear();
+  const [filterMonth, setFilterMonth] = useState(String(currentYear));
+  const year = filterMonth || currentYear;
 
-  const load = (month = '') => {
+  const load = (yr = currentYear) => {
     setLoading(true);
-    const url = month
-      ? `/reports/dashboard?year=${year}&month=${month}`
-      : `/reports/dashboard?year=${year}`;
-    api.get(url).then(setData).catch(console.error).finally(() => setLoading(false));
+    api.get(`/reports/dashboard?year=${yr}`)
+      .then(setData).catch(console.error).finally(() => setLoading(false));
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(currentYear); }, []);
 
   if (loading) return React.createElement('div', { style: { padding: 40, textAlign: 'center' } }, React.createElement(Spinner));
 
@@ -1078,7 +1077,7 @@ function DashboardPage() {
   const topCC = data?.topCostCenters || [];
 
   // Meses disponíveis a partir dos dados de evolução
-  const availableMonths = monthly.map(m => m.month?.substring(0, 7)).filter(Boolean);
+  // availableMonths não usado no filtro por ano, mantido para compatibilidade
 
   const aggKpis = (() => {
     const fromMonthly = {
@@ -1096,30 +1095,22 @@ function DashboardPage() {
 
   return React.createElement('div', { className: 'page' },
 
-    // Filtro de mês
+    // Filtro por ano
     React.createElement('div', { className: 'flex-between mb-16' },
       React.createElement('div', { style: { display: 'flex', gap: 8, alignItems: 'center' } },
-        React.createElement('label', { style: { fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)' } }, 'Filtrar por mês:'),
+        React.createElement('label', { style: { fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)' } }, 'Ano:'),
         React.createElement('select', {
-          className: 'input', style: { width: 160 },
+          className: 'input', style: { width: 120 },
           value: filterMonth,
           onChange: e => { setFilterMonth(e.target.value); load(e.target.value); }
         },
-          React.createElement('option', { value: '' }, 'Todos os meses'),
-          availableMonths.map(m =>
-            React.createElement('option', { key: m, value: m },
-              new Date(m + '-15').toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
-                .replace(/^\w/, c => c.toUpperCase())
-            )
+          [year, year-1, year-2].map(y =>
+            React.createElement('option', { key: y, value: y }, y)
           )
-        ),
-        filterMonth && React.createElement('button', {
-          className: 'btn btn-ghost', style: { fontSize: 12 },
-          onClick: () => { setFilterMonth(''); load(''); }
-        }, '✕ Limpar')
+        )
       ),
       React.createElement('div', { style: { fontSize: 12, color: 'var(--text-muted)' } },
-        filterMonth ? `Exibindo: ${new Date(filterMonth + '-15').toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}` : `Ano ${year} — todos os meses`
+        `Exibindo dados de ${filterMonth || year}`
       )
     ),
 
