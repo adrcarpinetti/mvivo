@@ -2900,9 +2900,13 @@ function LinesPage() {
   const [selected, setSelected] = useState(null);
   const [lineDetail, setLineDetail] = useState(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
+  const [filterCC, setFilterCC] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
 
   const load = (q = '') => {
-    const url = '/lines' + (q ? `?search=${encodeURIComponent(q)}` : '');
+    const params = new URLSearchParams();
+    if (q) params.append('search', q);
+    const url = '/lines' + (params.toString() ? '?' + params.toString() : '');
     return api.get(url).then(d => {
       setLines(d.lines || []);
       setTotal(d.total || 0);
@@ -2918,6 +2922,17 @@ function LinesPage() {
     const t = setTimeout(() => load(search), 400);
     return () => clearTimeout(t);
   }, [search]);
+
+  // Filtro local por CC e status
+  const filtered = lines.filter(l => {
+    if (filterCC && !(l.cost_center_code?.toLowerCase().includes(filterCC.toLowerCase()) ||
+                      l.cost_center_name?.toLowerCase().includes(filterCC.toLowerCase()))) return false;
+    if (filterStatus === 'sem_cc' && l.cost_center_code) return false;
+    if (filterStatus === 'com_cc' && !l.cost_center_code) return false;
+    if (filterStatus === 'ativa' && !l.active) return false;
+    if (filterStatus === 'inativa' && l.active) return false;
+    return true;
+  });
 
   const loadDetail = (number) => {
     setSelected(number);
@@ -2936,17 +2951,42 @@ function LinesPage() {
       )
     ),
 
-    React.createElement('div', { className: 'card mb-16' },
-      React.createElement('input', {
-        type: 'search', className: 'input',
-        placeholder: '🔍 Buscar por número, funcionário ou centro de custo…',
-        value: search, onChange: e => setSearch(e.target.value),
-        style: { maxWidth: 480 }
-      })
+    React.createElement('div', { className: 'card mb-16', style: { padding: '12px 16px' } },
+      React.createElement('div', { style: { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' } },
+        React.createElement('input', {
+          type: 'search', className: 'input',
+          placeholder: '🔍 Número, funcionário…',
+          value: search, onChange: e => setSearch(e.target.value),
+          style: { width: 200 }
+        }),
+        React.createElement('input', {
+          type: 'search', className: 'input',
+          placeholder: '🏢 Centro de custo…',
+          value: filterCC, onChange: e => setFilterCC(e.target.value),
+          style: { width: 180 }
+        }),
+        React.createElement('select', {
+          className: 'input', style: { width: 150 },
+          value: filterStatus,
+          onChange: e => setFilterStatus(e.target.value)
+        },
+          React.createElement('option', { value: '' }, 'Todos status'),
+          React.createElement('option', { value: 'com_cc' }, 'Com CC'),
+          React.createElement('option', { value: 'sem_cc' }, 'Sem CC'),
+          React.createElement('option', { value: 'ativa' }, 'Ativas'),
+          React.createElement('option', { value: 'inativa' }, 'Inativas')
+        ),
+        (filterCC || filterStatus) && React.createElement('button', {
+          className: 'btn btn-ghost', style: { fontSize: 12 },
+          onClick: () => { setFilterCC(''); setFilterStatus(''); }
+        }, '✕ Limpar'),
+        React.createElement('span', { style: { fontSize: 12, color: 'var(--text-muted)' } },
+          searching ? 'Buscando…' : `${filtered.length} de ${total} linha(s)`)
+      )
     ),
 
     loading ? React.createElement(Spinner) :
-    lines.length === 0
+    lines.length === 0 && filtered.length === 0
       ? React.createElement('div', { className: 'card empty-state' },
           React.createElement('h3', null, search ? 'Nenhuma linha encontrada para essa busca' : 'Nenhuma linha importada ainda'),
           React.createElement('p', null, search ? 'Tente outro termo' : 'Importe arquivos Vivo para as linhas aparecerem aqui')
@@ -2965,7 +3005,7 @@ function LinesPage() {
                 )
               ),
               React.createElement('tbody', null,
-                lines.map((l, i) =>
+                filtered.map((l, i) =>
                   React.createElement('tr', {
                     key: l.number,
                     style: { cursor: 'pointer', background: selected === l.number ? 'var(--surface-3)' : '' },
