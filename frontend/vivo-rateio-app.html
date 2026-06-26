@@ -2999,7 +2999,7 @@ function LinesPage() {
             React.createElement('table', { className: 'table', style: { margin: 0 } },
               React.createElement('thead', null,
                 React.createElement('tr', null,
-                  ['Telefone', 'Funcionário', 'Centro de Custo', 'Último Valor', 'Mês Ref.', 'Status'].map(h =>
+                  ['Telefone', 'Funcionário', 'Centro de Custo', 'Conta', 'Último Valor', 'Mês Ref.', 'Status'].map(h =>
                     React.createElement('th', { key: h }, h)
                   )
                 )
@@ -3020,6 +3020,11 @@ function LinesPage() {
                             React.createElement('small', { className: 'text-muted' }, l.cost_center_code)
                           )
                         : React.createElement('span', { className: 'badge badge-warning' }, 'Sem CC')
+                    ),
+                    React.createElement('td', null,
+                      l.account_number
+                        ? React.createElement('code', { style: { fontSize: 11 } }, l.account_number)
+                        : React.createElement('span', { className: 'text-muted' }, '—')
                     ),
                     React.createElement('td', null,
                       l.last_billed_amount

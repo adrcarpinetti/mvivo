@@ -36,6 +36,7 @@ router.get('/', authenticate, async (req, res) => {
         gi.plan_type,
         gi.line_type,
         gi.reference_value,
+        gi.account_number,
         vi.amount          AS last_billed_amount,
         vi.reference_month AS last_reference_month
       FROM phone_lines pl
