@@ -154,31 +154,55 @@ router.post('/:id/reopen', authenticate, requirePermission('all'), async (req, r
 });
 
 // GET /api/allocations/:id/reconciliation - Reconciliação Vivo X GOC
+// :id pode ser o ID da vivo_account OU do monthly_allocation
 router.get('/:id/reconciliation', authenticate, async (req, res) => {
   try {
-    const allocRes = await query(
-      'SELECT ma.*, va.reference_month, va.account_number FROM monthly_allocations ma JOIN vivo_accounts va ON va.id = ma.vivo_account_id WHERE ma.id = $1',
+    // Tenta primeiro como vivo_account_id
+    let vaRes = await query(
+      'SELECT id, account_number, reference_month, total_amount FROM vivo_accounts WHERE id = $1',
       [req.params.id]
     );
-    if (allocRes.rows.length === 0) return res.status(404).json({ error: 'Não encontrado' });
-    const alloc = allocRes.rows[0];
+    let vivo_account_id = req.params.id;
+    let reference_month, account_number, total_amount;
 
-    // Linhas na Vivo
+    if (vaRes.rows.length > 0) {
+      // É um vivo_account_id
+      ({ account_number, total_amount } = vaRes.rows[0]);
+      const rm = vaRes.rows[0].reference_month;
+      reference_month = rm instanceof Date ? rm.toISOString().substring(0,10) : String(rm).substring(0,10);
+    } else {
+      // Tenta como monthly_allocation_id
+      const allocRes = await query(
+        'SELECT ma.*, va.id as va_id, va.reference_month as va_ref, va.account_number, va.total_amount FROM monthly_allocations ma JOIN vivo_accounts va ON va.id = ma.vivo_account_id WHERE ma.id = $1',
+        [req.params.id]
+      );
+      if (allocRes.rows.length === 0) return res.status(404).json({ error: 'Conta não encontrada' });
+      const a = allocRes.rows[0];
+      vivo_account_id = a.va_id;
+      account_number  = a.account_number;
+      total_amount    = a.total_amount;
+      const rm = a.va_ref || a.reference_month;
+      reference_month = rm instanceof Date ? rm.toISOString().substring(0,10) : String(rm).substring(0,10);
+    }
+
+    // Linhas na Vivo (usa monthly_total que tem um valor por linha)
     const vivoLines = await query(`
-      SELECT DISTINCT line_number, SUM(amount) as total_amount
+      SELECT DISTINCT ON (line_number) line_number, amount as total_amount
       FROM vivo_invoice_items
-      WHERE vivo_account_id = $1 AND item_category = 'monthly_fee'
-      GROUP BY line_number
-    `, [alloc.vivo_account_id]);
+      WHERE vivo_account_id = $1 AND item_category = 'monthly_total'
+      ORDER BY line_number, amount DESC
+    `, [vivo_account_id]);
 
-    // Linhas no GOC
+    // Linhas no GOC — busca pelo mês exato, sem filtrar por account_number
+    // (o GOC pode não ter o campo NUMERO_CONTA preenchido)
     const gocLines = await query(`
-      SELECT gii.phone_number, gii.cost_center_code, gii.cost_center_name, gii.employee_name
+      SELECT DISTINCT ON (gii.phone_number)
+        gii.phone_number, gii.cost_center_code, gii.cost_center_name, gii.employee_name
       FROM goc_import_items gii
       JOIN goc_imports gi ON gi.id = gii.goc_import_id
       WHERE gi.reference_month = $1
-        AND gii.account_number = $2
-    `, [alloc.reference_month, alloc.account_number]);
+      ORDER BY gii.phone_number, gii.id DESC
+    `, [reference_month]);
 
     const vivoSet = new Set(vivoLines.rows.map(r => r.line_number?.replace(/\D/g, '')));
     const gocMap = new Map(gocLines.rows.map(r => [r.phone_number?.replace(/\D/g, ''), r]));
@@ -203,8 +227,15 @@ router.get('/:id/reconciliation', authenticate, async (req, res) => {
     }
 
     // Calcula totais
-    const totalVivo = vivoLines.rows.reduce((s, r) => s + parseFloat(r.total_amount || 0), 0);
-    const totalAllocated = totalVivo; // assumindo que o rateio soma igual
+    const totalVivo = parseFloat(total_amount) || vivoLines.rows.reduce((s, r) => s + parseFloat(r.total_amount || 0), 0);
+    // Busca total rateado do monthly_allocation se existir
+    const maRes = await query(
+      'SELECT total_allocated_amount FROM monthly_allocations WHERE vivo_account_id = $1',
+      [vivo_account_id]
+    );
+    const totalAllocated = maRes.rows.length > 0
+      ? parseFloat(maRes.rows[0].total_allocated_amount || 0)
+      : totalVivo;
 
     // Linhas sem CC: estão na Vivo mas o GOC não tem CC preenchido
     const linesWithoutCC = inBoth.filter(l => !l.cost_center_code).map(l => ({
