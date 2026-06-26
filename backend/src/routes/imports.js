@@ -130,13 +130,16 @@ router.post('/vivo', authenticate, requirePermission('import'),
         processedCount++;
       }
 
-      // Insere itens detalhados
+      // Insere itens detalhados (inclusive extra_charge sem linha)
       for (const raw of parsed.rawItems) {
-        if (raw.lineNumber && raw.amount && raw.amount !== 0) {
-          const lineRes = await client.query(
-            'SELECT id FROM phone_lines WHERE number = $1', [raw.lineNumber]
-          );
-          const phoneLineId = lineRes.rows[0]?.id || null;
+        if (raw.amount && raw.amount !== 0) {
+          let phoneLineId = null;
+          if (raw.lineNumber) {
+            const lineRes = await client.query(
+              'SELECT id FROM phone_lines WHERE number = $1', [raw.lineNumber]
+            );
+            phoneLineId = lineRes.rows[0]?.id || null;
+          }
 
           await client.query(`
             INSERT INTO vivo_invoice_items (
@@ -144,7 +147,7 @@ router.post('/vivo', authenticate, requirePermission('import'),
               subscription_code, segment_code, item_category, description, amount, raw_data
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
           `, [
-            accountId, phoneLineId, parsed.accountNumber, raw.lineNumber,
+            accountId, phoneLineId, parsed.accountNumber, raw.lineNumber || null,
             raw.subscriptionCode, raw.segmentCode, raw.category,
             raw.description, raw.amount, JSON.stringify(raw),
           ]);
