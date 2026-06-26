@@ -2688,88 +2688,147 @@ function LinesPage() {
   const [lines, setLines] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [searching, setSearching] = useState(false);
+  const [total, setTotal] = useState(0);
   const [selected, setSelected] = useState(null);
   const [lineDetail, setLineDetail] = useState(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
 
-  useEffect(() => {
-    // Busca linhas a partir do dashboard / endpoint de linhas
-    api.get('/reports/dashboard').then(d => {
-      // Montar lista de linhas do vw_allocation_dashboard ou fallback
-      const ls = d.topCostCenters || [];
-      setLines(ls);
-    }).catch(() => {}).finally(() => setLoading(false));
-  }, []);
+  const load = (q = '') => {
+    const url = '/lines' + (q ? `?search=${encodeURIComponent(q)}` : '');
+    return api.get(url).then(d => {
+      setLines(d.lines || []);
+      setTotal(d.total || 0);
+    }).catch(() => {}).finally(() => { setLoading(false); setSearching(false); });
+  };
 
-  const loadLineDetail = (number) => {
+  useEffect(() => { load(); }, []);
+
+  // Busca com debounce
+  useEffect(() => {
+    if (loading) return;
+    setSearching(true);
+    const t = setTimeout(() => load(search), 400);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  const loadDetail = (number) => {
     setSelected(number);
     setLoadingDetail(true);
-    api.get(`/reports/line/${number.replace(/\D/g, '')}`)
+    api.get(`/lines/${number}/history`)
       .then(d => setLineDetail(d))
       .catch(() => setLineDetail(null))
       .finally(() => setLoadingDetail(false));
   };
 
-  const filtered = lines.filter(l =>
-    !search || JSON.stringify(l).toLowerCase().includes(search.toLowerCase())
-  );
-
   return React.createElement('div', { className: 'page' },
-    React.createElement('div', { className: 'flex-between mb-24' },
+    React.createElement('div', { className: 'flex-between mb-16' },
       React.createElement('div', null,
         React.createElement('h2', { style: { fontSize: 18, fontWeight: 700 } }, 'Gestão de Linhas'),
-        React.createElement('p', { className: 'text-muted mt-4' }, 'Histórico e status de cada linha telefônica')
+        React.createElement('p', { className: 'text-muted mt-4' }, `${total} linha(s) telefônica(s) no sistema`)
       )
     ),
 
     React.createElement('div', { className: 'card mb-16' },
       React.createElement('input', {
-        type: 'search', className: 'input', placeholder: '🔍 Buscar por número, funcionário ou centro de custo…',
+        type: 'search', className: 'input',
+        placeholder: '🔍 Buscar por número, funcionário ou centro de custo…',
         value: search, onChange: e => setSearch(e.target.value),
-        style: { maxWidth: 400 }
+        style: { maxWidth: 480 }
       })
     ),
 
     loading ? React.createElement(Spinner) :
     lines.length === 0
       ? React.createElement('div', { className: 'card empty-state' },
-          React.createElement('h3', null, 'Nenhuma linha encontrada'),
-          React.createElement('p', null, 'As linhas aparecerão aqui após a importação de arquivos Vivo')
+          React.createElement('h3', null, search ? 'Nenhuma linha encontrada para essa busca' : 'Nenhuma linha importada ainda'),
+          React.createElement('p', null, search ? 'Tente outro termo' : 'Importe arquivos Vivo para as linhas aparecerem aqui')
         )
-      : React.createElement('div', { style: { display: 'grid', gridTemplateColumns: '1fr 340px', gap: 16 } },
-          React.createElement('div', { className: 'card' },
-            React.createElement('div', { style: { fontWeight: 600, marginBottom: 12 } },
-              `${filtered.length} centro(s) de custo encontrado(s)`),
-            React.createElement('table', { className: 'table' },
+      : React.createElement('div', { style: { display: 'grid', gridTemplateColumns: selected ? '1fr 380px' : '1fr', gap: 16, alignItems: 'start' } },
+
+          // Tabela principal
+          React.createElement('div', { className: 'card', style: { padding: 0, overflow: 'hidden' } },
+            searching && React.createElement('div', { style: { padding: '8px 16px', background: 'var(--surface-2)', fontSize: 12, color: 'var(--text-muted)' } }, 'Buscando…'),
+            React.createElement('table', { className: 'table', style: { margin: 0 } },
               React.createElement('thead', null,
                 React.createElement('tr', null,
-                  ['Centro de Custo', 'Linhas', 'Valor Total'].map(h =>
+                  ['Telefone', 'Funcionário', 'Centro de Custo', 'Último Valor', 'Mês Ref.', 'Status'].map(h =>
                     React.createElement('th', { key: h }, h)
                   )
                 )
               ),
               React.createElement('tbody', null,
-                filtered.map((cc, i) =>
-                  React.createElement('tr', { key: i },
+                lines.map((l, i) =>
+                  React.createElement('tr', {
+                    key: l.number,
+                    style: { cursor: 'pointer', background: selected === l.number ? 'var(--surface-3)' : '' },
+                    onClick: () => loadDetail(l.number)
+                  },
+                    React.createElement('td', null, React.createElement('code', null, fmt.phone(l.number))),
+                    React.createElement('td', null, l.employee_name || React.createElement('span', { className: 'text-muted' }, '—')),
                     React.createElement('td', null,
-                      React.createElement('div', { style: { fontWeight: 500 } }, cc.name || cc.cost_center_name),
-                      React.createElement('small', { className: 'text-muted' }, cc.code || cc.cost_center_code)
+                      l.cost_center_code
+                        ? React.createElement('div', null,
+                            React.createElement('div', { style: { fontWeight: 500, fontSize: 13 } }, l.cost_center_name || l.cost_center_code),
+                            React.createElement('small', { className: 'text-muted' }, l.cost_center_code)
+                          )
+                        : React.createElement('span', { className: 'badge badge-warning' }, 'Sem CC')
                     ),
-                    React.createElement('td', null, cc.lineCount || cc.line_count || 0),
-                    React.createElement('td', null, fmt.currency(cc.totalAmount || cc.total_amount || 0))
+                    React.createElement('td', null,
+                      l.last_billed_amount
+                        ? fmt.currency(parseFloat(l.last_billed_amount))
+                        : React.createElement('span', { className: 'text-muted' }, '—')
+                    ),
+                    React.createElement('td', null,
+                      l.last_reference_month
+                        ? fmt.month(l.last_reference_month)
+                        : React.createElement('span', { className: 'text-muted' }, '—')
+                    ),
+                    React.createElement('td', null,
+                      React.createElement('span', {
+                        className: `badge badge-${l.active ? 'success' : 'gray'}`
+                      }, l.active ? 'Ativa' : 'Inativa')
+                    )
                   )
                 )
               )
             )
           ),
 
+          // Painel lateral de detalhes
           selected && React.createElement('div', { className: 'card' },
-            React.createElement('div', { style: { fontWeight: 600, marginBottom: 8 } }, 'Detalhes da Linha'),
+            React.createElement('div', { className: 'flex-between mb-12' },
+              React.createElement('div', { style: { fontWeight: 700 } }, fmt.phone(selected)),
+              React.createElement('button', { className: 'btn btn-ghost', style: { fontSize: 12 }, onClick: () => setSelected(null) }, '✕ Fechar')
+            ),
             loadingDetail ? React.createElement(Spinner) :
-            !lineDetail ? React.createElement('p', { className: 'text-muted' }, 'Selecione uma linha') :
-            React.createElement('div', null,
-              React.createElement('p', null, `Histórico de ${lineDetail.history?.length || 0} meses`)
-            )
+            !lineDetail ? React.createElement('p', { className: 'text-muted' }, 'Erro ao carregar') :
+            lineDetail.history?.length === 0
+              ? React.createElement('p', { className: 'text-muted' }, 'Sem histórico de cobranças')
+              : React.createElement('div', null,
+                  React.createElement('div', { style: { fontWeight: 600, fontSize: 12, color: 'var(--text-secondary)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1 } },
+                    `Histórico — ${lineDetail.history?.length} meses`
+                  ),
+                  React.createElement('table', { className: 'table', style: { fontSize: 12 } },
+                    React.createElement('thead', null,
+                      React.createElement('tr', null,
+                        ['Mês', 'CC', 'Funcionário', 'Valor'].map(h =>
+                          React.createElement('th', { key: h }, h)
+                        )
+                      )
+                    ),
+                    React.createElement('tbody', null,
+                      (lineDetail.history || []).map((h, j) =>
+                        React.createElement('tr', { key: j },
+                          React.createElement('td', null, fmt.month(h.reference_month)),
+                          React.createElement('td', null, h.cost_center_code || React.createElement('span', { className: 'text-muted' }, '—')),
+                          React.createElement('td', null, h.employee_name || React.createElement('span', { className: 'text-muted' }, '—')),
+                          React.createElement('td', null, fmt.currency(parseFloat(h.amount || 0)))
+                        )
+                      )
+                    )
+                  )
+                )
           )
         )
   );
