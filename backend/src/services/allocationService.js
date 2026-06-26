@@ -242,7 +242,20 @@ async function processAllocation(vivoAccountId, options = {}) {
       .filter(cc => cc.totalAmount > 0)
       .sort((a, b) => b.totalAmount - a.totalAmount);
 
-    const totalAllocated = ccBreakdown.reduce((s, c) => s + c.totalAmount, 0);
+    let totalAllocated = ccBreakdown.reduce((s, c) => s + c.totalAmount, 0);
+
+    // Ajuste proporcional: se soma > total fatura, reduzir todos os CCs
+    const invoiceTotalCheck = parseFloat(account.total_amount || 0);
+    if (invoiceTotalCheck > 0 && totalAllocated > invoiceTotalCheck + 0.01) {
+      const ratio = invoiceTotalCheck / totalAllocated;
+      logger.info('Pre-save adjustment ratio=' + ratio.toFixed(4) + ' totalAllocated=' + totalAllocated + ' invoice=' + invoiceTotalCheck);
+      for (const cc of ccBreakdown) {
+        cc.directAmount    = parseFloat((cc.directAmount    * ratio).toFixed(2));
+        cc.allocatedAmount = parseFloat((cc.allocatedAmount * ratio).toFixed(2));
+        cc.totalAmount     = parseFloat((cc.totalAmount     * ratio).toFixed(2));
+      }
+      totalAllocated = invoiceTotalCheck;
+    }
 
     const totalLines = itemsRes.rows.length;
     const allocationResult = {
@@ -267,21 +280,6 @@ async function processAllocation(vivoAccountId, options = {}) {
       })),
       rulesApplied: rules.map(r => ({ id: r.id, name: r.name, type: r.rule_type })),
     };
-
-    // Ajuste: se total rateado > total fatura, reduzir proporcionalmente ANTES de salvar
-    const invoiceTotal = parseFloat(account.total_amount || 0);
-    if (invoiceTotal > 0 && allocationResult.totalAmount > invoiceTotal + 0.01) {
-      const ratio = invoiceTotal / allocationResult.totalAmount;
-      logger.info('Adjusting allocation by ratio ' + ratio.toFixed(4) + ' to match invoice total ' + invoiceTotal);
-      for (const item of allocationResult.items) {
-        item.directAmount    = parseFloat((item.directAmount    * ratio).toFixed(2));
-        item.allocatedAmount = parseFloat((item.allocatedAmount * ratio).toFixed(2));
-        item.totalAmount     = parseFloat((item.totalAmount     * ratio).toFixed(2));
-      }
-      allocationResult.totalAmount = invoiceTotal;
-      allocationResult.totalAllocatedAmount = invoiceTotal;
-      allocationResult.difference = 0;
-    }
 
     if (!simulate) {
       // Salva o rateio no banco (já com valores ajustados)
