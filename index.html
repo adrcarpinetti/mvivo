@@ -2962,14 +2962,20 @@ function LinesPage() {
   const [filterCC, setFilterCC] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterAccount, setFilterAccount] = useState('');
+  const [filterYear, setFilterYear] = useState('');
+  const [filterMonth, setFilterMonth] = useState('');
+  const [availableMonths, setAvailableMonths] = useState([]);
 
-  const load = (q = '') => {
+  const load = (q = '', yr = filterYear, mo = filterMonth) => {
     const params = new URLSearchParams();
     if (q) params.append('search', q);
+    if (yr) params.append('year', yr);
+    if (mo) params.append('month', mo);
     const url = '/lines' + (params.toString() ? '?' + params.toString() : '');
     return api.get(url).then(d => {
       setLines(d.lines || []);
       setTotal(d.total || 0);
+      if (d.availableMonths) setAvailableMonths(d.availableMonths);
     }).catch(() => {}).finally(() => { setLoading(false); setSearching(false); });
   };
 
@@ -3033,6 +3039,30 @@ function LinesPage() {
           style: { width: 140 }
         }),
         React.createElement('select', {
+          className: 'input', style: { width: 90 },
+          value: filterYear,
+          onChange: e => { setFilterYear(e.target.value); setFilterMonth(''); load(search, e.target.value, ''); }
+        },
+          React.createElement('option', { value: '' }, 'Todos anos'),
+          [2026, 2025, 2024, 2023].map(y =>
+            React.createElement('option', { key: y, value: String(y) }, y)
+          )
+        ),
+        React.createElement('select', {
+          className: 'input', style: { width: 130 },
+          value: filterMonth,
+          onChange: e => { setFilterMonth(e.target.value); load(search, filterYear, e.target.value); }
+        },
+          React.createElement('option', { value: '' }, 'Todos os meses'),
+          availableMonths
+            .filter(m => !filterYear || m.startsWith(filterYear))
+            .map(m => {
+              const [y, mo] = m.split('-');
+              const label = new Date(`${y}-${mo}-15`).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' });
+              return React.createElement('option', { key: m, value: mo }, label);
+            })
+        ),
+        React.createElement('select', {
           className: 'input', style: { width: 150 },
           value: filterStatus,
           onChange: e => setFilterStatus(e.target.value)
@@ -3043,9 +3073,9 @@ function LinesPage() {
           React.createElement('option', { value: 'ativa' }, 'Ativas'),
           React.createElement('option', { value: 'inativa' }, 'Inativas')
         ),
-        (filterCC || filterStatus || filterAccount) && React.createElement('button', {
+        (filterCC || filterStatus || filterAccount || filterYear || filterMonth) && React.createElement('button', {
           className: 'btn btn-ghost', style: { fontSize: 12 },
-          onClick: () => { setFilterCC(''); setFilterStatus(''); setFilterAccount(''); }
+          onClick: () => { setFilterCC(''); setFilterStatus(''); setFilterAccount(''); setFilterYear(''); setFilterMonth(''); load(search, '', ''); }
         }, '✕ Limpar'),
         React.createElement('span', { style: { fontSize: 12, color: 'var(--text-muted)' } },
           searching ? 'Buscando…' : `${filtered.length} de ${total} linha(s)`)
@@ -3131,20 +3161,35 @@ function LinesPage() {
                   React.createElement('table', { className: 'table', style: { fontSize: 12 } },
                     React.createElement('thead', null,
                       React.createElement('tr', null,
-                        ['Mês', 'CC', 'Funcionário', 'Valor'].map(h =>
+                        ['Mês', 'CC', 'Funcionário', 'Valor', ''].map(h =>
                           React.createElement('th', { key: h }, h)
                         )
                       )
                     ),
                     React.createElement('tbody', null,
-                      (lineDetail.history || []).map((h, j) =>
-                        React.createElement('tr', { key: j },
+                      (lineDetail.history || []).map((h, j) => {
+                        const prev = lineDetail.history[j + 1];
+                        const ccChanged  = prev && h.cost_center_code  !== prev.cost_center_code;
+                        const empChanged = prev && h.employee_name      !== prev.employee_name;
+                        const changed = ccChanged || empChanged;
+                        return React.createElement('tr', {
+                          key: j,
+                          style: changed ? { background: 'rgba(201,0,161,0.06)', borderLeft: '3px solid var(--brand-primary)' } : {}
+                        },
                           React.createElement('td', null, fmt.month(h.reference_month)),
-                          React.createElement('td', null, h.cost_center_code || React.createElement('span', { className: 'text-muted' }, '—')),
+                          React.createElement('td', null,
+                            React.createElement('div', { style: { fontWeight: 600 } }, h.cost_center_code || '—'),
+                            h.cost_center_name && React.createElement('div', { style: { fontSize: 11, color: 'var(--text-muted)' } }, h.cost_center_name)
+                          ),
                           React.createElement('td', null, h.employee_name || React.createElement('span', { className: 'text-muted' }, '—')),
-                          React.createElement('td', null, fmt.currency(parseFloat(h.amount || 0)))
-                        )
-                      )
+                          React.createElement('td', { className: 'td-num' }, fmt.currency(parseFloat(h.amount || 0))),
+                          React.createElement('td', null,
+                            changed && React.createElement('span', {
+                              style: { fontSize: 10, background: 'var(--brand-primary)', color: '#fff', padding: '1px 5px', borderRadius: 4 }
+                            }, ccChanged ? 'CC mudou' : 'Usuário mudou')
+                          )
+                        );
+                      })
                     )
                   )
                 )

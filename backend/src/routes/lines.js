@@ -6,10 +6,15 @@ const router = express.Router();
 // GET /api/lines
 router.get('/', authenticate, async (req, res) => {
   try {
-    const { search, page = 1, limit = 2000 } = req.query;
+    const { search, page = 1, limit = 2000, year, month } = req.query;
     const offset = (page - 1) * limit;
     const params = [];
     let searchWhere = '';
+
+    // Filtro de período — se informado, busca dados do GOC e Vivo daquele mês
+    const refMonth = year && month
+      ? `${year}-${month.padStart(2,'0')}-01`
+      : null;
 
     if (search) {
       params.push(`%${search}%`);
@@ -45,6 +50,7 @@ router.get('/', authenticate, async (req, res) => {
         FROM goc_import_items gi2
         JOIN goc_imports g ON g.id = gi2.goc_import_id
         WHERE gi2.phone_number = pl.number
+          ${refMonth ? `AND g.reference_month = '${refMonth}'` : ''}
         ORDER BY g.reference_month DESC
         LIMIT 1
       ) gi ON TRUE
@@ -54,10 +60,12 @@ router.get('/', authenticate, async (req, res) => {
         JOIN vivo_accounts va ON va.id = vii.vivo_account_id
         WHERE vii.line_number = pl.number
           AND vii.item_category = 'monthly_total'
+          ${refMonth ? `AND va.reference_month = '${refMonth}'` : ''}
         ORDER BY va.reference_month DESC
         LIMIT 1
       ) vi ON TRUE
       ${searchWhere}
+      ${refMonth ? (searchWhere ? 'AND' : 'WHERE') + ` (vi.reference_month = '${refMonth}' OR gi.cost_center_code IS NOT NULL)` : ''}
       ORDER BY pl.number
       LIMIT $${limitIdx} OFFSET $${offsetIdx}
     `, params);
@@ -76,11 +84,18 @@ router.get('/', authenticate, async (req, res) => {
       ${searchWhere}
     `, countParams);
 
+    // Meses disponíveis (para o seletor de filtro)
+    const monthsRes = await query(`
+      SELECT DISTINCT TO_CHAR(reference_month, 'YYYY-MM') AS month
+      FROM vivo_accounts ORDER BY month DESC LIMIT 24
+    `);
+
     res.json({
       lines: result.rows,
       total: parseInt(countRes.rows[0].count),
       page: parseInt(page),
       limit: parseInt(limit),
+      availableMonths: monthsRes.rows.map(r => r.month),
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
