@@ -1620,9 +1620,11 @@ function AllocationsPage() {
     if (filterMonth && !ref.endsWith('-' + filterMonth.padStart(2,'0'))) return false;
     if (filterStatus) {
       const st = a.allocation_status || a.status || '';
-      if (filterStatus === 'pending' && ['confirmed','closed'].includes(st)) return false;
+      if (filterStatus === 'pending'   && ['confirmed','closed'].includes(st)) return false;
       if (filterStatus === 'confirmed' && st !== 'confirmed') return false;
-      if (filterStatus === 'closed' && st !== 'closed') return false;
+      if (filterStatus === 'closed'    && st !== 'closed') return false;
+      if (filterStatus === 'sem_cc'    && !(parseInt(a.lines_without_cc) > 0)) return false;
+      if (filterStatus === 'diferenca' && !(Math.abs(parseFloat(a.difference || 0)) > 0.01)) return false;
     }
     if (searchText && !a.account_number?.includes(searchText)) return false;
     return true;
@@ -1712,7 +1714,9 @@ function AllocationsPage() {
           React.createElement('option', { value: '' }, 'Todos status'),
           React.createElement('option', { value: 'pending' }, 'Pendentes'),
           React.createElement('option', { value: 'confirmed' }, 'Confirmados'),
-          React.createElement('option', { value: 'closed' }, 'Fechados')
+          React.createElement('option', { value: 'closed' }, 'Fechados'),
+          React.createElement('option', { value: 'sem_cc' }, '⚠ Com Sem CC'),
+          React.createElement('option', { value: 'diferenca' }, '⚠ Com Diferença')
         ),
         (filterYear || filterMonth || filterStatus || searchText) && React.createElement('button', {
           className: 'btn btn-ghost', style: { fontSize: 12 },
