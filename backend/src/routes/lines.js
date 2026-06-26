@@ -6,7 +6,7 @@ const router = express.Router();
 // GET /api/lines
 router.get('/', authenticate, async (req, res) => {
   try {
-    const { search, page = 1, limit = 200 } = req.query;
+    const { search, page = 1, limit = 2000 } = req.query;
     const offset = (page - 1) * limit;
     const params = [];
     let searchWhere = '';
