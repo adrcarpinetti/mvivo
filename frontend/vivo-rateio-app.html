@@ -2902,6 +2902,7 @@ function LinesPage() {
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [filterCC, setFilterCC] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  const [filterAccount, setFilterAccount] = useState('');
 
   const load = (q = '') => {
     const params = new URLSearchParams();
@@ -2927,6 +2928,7 @@ function LinesPage() {
   const filtered = lines.filter(l => {
     if (filterCC && !(l.cost_center_code?.toLowerCase().includes(filterCC.toLowerCase()) ||
                       l.cost_center_name?.toLowerCase().includes(filterCC.toLowerCase()))) return false;
+    if (filterAccount && !l.account_number?.includes(filterAccount)) return false;
     if (filterStatus === 'sem_cc' && l.cost_center_code) return false;
     if (filterStatus === 'com_cc' && !l.cost_center_code) return false;
     if (filterStatus === 'ativa' && !l.active) return false;
@@ -2963,7 +2965,13 @@ function LinesPage() {
           type: 'search', className: 'input',
           placeholder: '🏢 Centro de custo…',
           value: filterCC, onChange: e => setFilterCC(e.target.value),
-          style: { width: 180 }
+          style: { width: 160 }
+        }),
+        React.createElement('input', {
+          type: 'search', className: 'input',
+          placeholder: '📄 Nº da conta…',
+          value: filterAccount, onChange: e => setFilterAccount(e.target.value),
+          style: { width: 140 }
         }),
         React.createElement('select', {
           className: 'input', style: { width: 150 },
@@ -2976,9 +2984,9 @@ function LinesPage() {
           React.createElement('option', { value: 'ativa' }, 'Ativas'),
           React.createElement('option', { value: 'inativa' }, 'Inativas')
         ),
-        (filterCC || filterStatus) && React.createElement('button', {
+        (filterCC || filterStatus || filterAccount) && React.createElement('button', {
           className: 'btn btn-ghost', style: { fontSize: 12 },
-          onClick: () => { setFilterCC(''); setFilterStatus(''); }
+          onClick: () => { setFilterCC(''); setFilterStatus(''); setFilterAccount(''); }
         }, '✕ Limpar'),
         React.createElement('span', { style: { fontSize: 12, color: 'var(--text-muted)' } },
           searching ? 'Buscando…' : `${filtered.length} de ${total} linha(s)`)
