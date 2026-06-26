@@ -107,8 +107,14 @@ async function parseVivoFile(fileBuffer, fileName) {
 
         // ── cobranças extras (não por linha): 190T, 195A ─────────────
         if ((segment === '190T' || segment === '195A') && !isPhone(phone)) {
-          const v = parseMonetary(valStr);
+          // 190T/195A: valor está em posições 165-195 OU 180-210 dependendo do arquivo
+          let v = parseMonetary(valStr); // 165-195
+          if (v === null || v === 0) {
+            const altVal = row.length > 195 ? row.substring(180, 210).trim() : '';
+            v = parseMonetary(altVal);
+          }
           if (v !== null && v > 0) {
+            logger.info('Extra charge captured: seg=' + segment + ' val=' + v);
             result.rawItems.push({
               lineNumber: null, subscriptionCode: null,
               segmentCode: segment, category: 'extra_charge',
