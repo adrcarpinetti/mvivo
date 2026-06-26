@@ -691,13 +691,14 @@ const { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Le
 
 // ===== API CLIENT =====
 // ===== CONFIGURAÇÃO DA API =====
-// Detecta se está rodando com backend real ou em modo demo (GitHub Pages)
+// Detecta automaticamente o modo de operação:
+//   - github.io           → modo demo (sem backend)
+//   - qualquer outro host → produção (tenta /api, se falhar avisa)
 const API_BASE = (() => {
   const configured = localStorage.getItem('api_base_url');
   if (configured) return configured;
-  // Se estiver em github.io ou sem backend, usa modo demo
-  if (location.hostname.includes('github.io') || location.hostname === 'localhost') return '__DEMO__';
-  return '/api';
+  if (location.hostname.includes('github.io')) return '__DEMO__';
+  return '/api'; // produção: nginx faz proxy de /api → localhost:3001
 })();
 
 const DEMO_MODE = API_BASE === '__DEMO__';
@@ -1547,14 +1548,9 @@ function AllocationsPage() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [accs, allocs] = await Promise.all([
-        api.get('/reports/monthly-summary?month=' + new Date().toISOString().slice(0,7))
-          .catch(() => ({ summary: [] })),
-        api.get('/allocations').catch(() => ({ allocations: [] })),
-      ]);
-      // Merge
-      const allocMap = new Map((allocs.allocations || []).map(a => [a.vivo_account_id, a]));
-      setAccounts(accs.summary || []);
+      const data = await api.get('/allocations').catch(() => ({ accounts: [], allocations: [] }));
+      // Usa `accounts` (todas as contas Vivo importadas) como base da tela
+      setAccounts(data.accounts || data.allocations || []);
     } finally { setLoading(false); }
   };
 
@@ -1595,7 +1591,7 @@ function AllocationsPage() {
         React.createElement('table', null,
           React.createElement('thead', null,
             React.createElement('tr', null,
-              ['Conta', 'Empresa', 'Total Fatura', 'Total Rateado', 'Diferença', 'Linhas', 'Sem CC', 'Status', 'Ações'].map(h =>
+              ['Conta', 'Empresa', 'Mês', 'Total Fatura', 'Total Rateado', 'Diferença', 'Linhas', 'Sem CC', 'Status', 'Ações'].map(h =>
                 React.createElement('th', { key: h }, h)
               )
             )
@@ -1607,35 +1603,53 @@ function AllocationsPage() {
                     'Nenhuma conta importada. Vá para Importação para adicionar arquivos.'
                   )
                 )
-              : accounts.map(acc =>
-                  React.createElement('tr', { key: acc.account_number },
+              : accounts.map((acc, idx) => {
+                  // Compatível com vivo_accounts E monthly_allocations
+                  const totalFatura   = acc.total_amount || acc.total_invoice_amount || 0;
+                  const totalRateado  = acc.total_allocated_amount || 0;
+                  const diferenca     = acc.difference || (totalFatura - totalRateado);
+                  const linhas        = acc.total_lines || acc.line_count || '-';
+                  const semCC         = acc.lines_without_cc || 0;
+                  const mes           = acc.reference_month
+                    ? fmt.month(acc.reference_month)
+                    : (acc.reference_month_label || '-');
+                  const accId         = acc.id || acc.vivo_account_id;
+
+                  return React.createElement('tr', { key: accId || idx },
                     React.createElement('td', { className: 'td-mono' }, acc.account_number),
                     React.createElement('td', null, acc.company_name || '-'),
-                    React.createElement('td', { className: 'td-num' }, fmt.currency(acc.total_invoice_amount)),
-                    React.createElement('td', { className: 'td-num' }, fmt.currency(acc.total_allocated_amount)),
+                    React.createElement('td', null, mes),
+                    React.createElement('td', { className: 'td-num' }, fmt.currency(totalFatura)),
+                    React.createElement('td', { className: 'td-num' }, totalRateado ? fmt.currency(totalRateado) : React.createElement('span', { className: 'text-muted' }, 'Não rateado')),
                     React.createElement('td', {
-                      className: `td-num ${Math.abs(acc.difference || 0) > 0.01 ? 'text-warning' : 'text-success'}`
-                    }, fmt.currency(acc.difference)),
-                    React.createElement('td', { className: 'td-num' }, acc.total_lines || '-'),
-                    React.createElement('td', { className: `td-num ${(acc.lines_without_cc || 0) > 0 ? 'text-warning' : ''}` },
-                      acc.lines_without_cc || 0
-                    ),
+                      className: `td-num ${Math.abs(diferenca) > 0.01 ? 'text-warning' : 'text-success'}`
+                    }, totalRateado ? fmt.currency(diferenca) : '-'),
+                    React.createElement('td', { className: 'td-num' }, linhas),
+                    React.createElement('td', { className: `td-num ${semCC > 0 ? 'text-warning' : ''}` }, semCC),
                     React.createElement('td', null, React.createElement(StatusBadge, { status: acc.status || 'imported' })),
                     React.createElement('td', null,
                       React.createElement('div', { className: 'flex gap-8' },
                         acc.status !== 'closed' && React.createElement('button', {
                           className: 'btn btn-accent btn-sm',
-                          disabled: processing === acc.account_number,
-                          onClick: () => show('Use o ID da conta para processar', 'warning')
-                        }, processing === acc.account_number ? React.createElement(Spinner) : '⚡ Ratear'),
-                        acc.allocation_id && React.createElement('button', {
+                          disabled: processing === accId,
+                          onClick: async () => {
+                            setProcessing(accId);
+                            try {
+                              await api.post('/allocations/process', { vivoAccountId: accId, accountId: accId, simulate: false });
+                              show('Rateio processado!', 'success');
+                              loadData();
+                            } catch(e) { show(e.message || 'Erro ao ratear', 'error'); }
+                            finally { setProcessing(null); }
+                          }
+                        }, processing === accId ? React.createElement(Spinner) : '⚡ Ratear'),
+                        (acc.allocation_id || acc.id) && React.createElement('button', {
                           className: 'btn btn-outline btn-sm',
-                          onClick: () => viewDetail(acc.allocation_id)
+                          onClick: () => viewDetail(acc.allocation_id || acc.id)
                         }, '👁 Ver')
                       )
                     )
-                  )
-                )
+                  );
+                })
           )
         )
       )

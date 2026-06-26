@@ -154,17 +154,41 @@ async function processAllocation(vivoAccountId, options = {}) {
       }
     }
 
+    const ccBreakdown = Array.from(ccTotals.values()).map(cc => ({
+      ...cc,
+      // Aliases para compatibilidade com o frontend
+      cost_center_code: cc.costCenterCode,
+      cost_center_name: cc.costCenterName,
+      costCenterCode: cc.costCenterCode,
+      costCenterName: cc.costCenterName,
+      directAmount: cc.directAmount || 0,
+      allocatedAmount: cc.allocatedAmount || 0,
+      totalAmount: (cc.directAmount || 0) + (cc.allocatedAmount || 0),
+      lineCount: cc.lineCount || 0,
+    }));
+
+    const totalAllocated = ccBreakdown.reduce((s, c) => s + c.totalAmount, 0);
+
     const allocationResult = {
       vivoAccountId,
       referenceMonth: account.reference_month,
+      totalAmount: parseFloat(account.total_amount) || allocationData.totalDirect + allocationData.totalUnallocated,
       totalInvoiceAmount: parseFloat(account.total_amount) || allocationData.totalDirect + allocationData.totalUnallocated,
-      totalAllocatedAmount: Array.from(ccTotals.values()).reduce((s, c) => s + c.directAmount + c.allocatedAmount, 0),
+      totalAllocated,
+      totalAllocatedAmount: totalAllocated,
+      difference: (parseFloat(account.total_amount) || 0) - totalAllocated,
       totalUnallocatedAmount: allocationData.totalUnallocated,
       totalLines: itemsRes.rows.length,
       linesWithCC: allocationData.withCC.length,
       linesWithoutCC: allocationData.withoutCC.length,
       linesInVivoNotGoc: allocationData.unmatched.length,
-      costCenterBreakdown: Array.from(ccTotals.values()),
+      items: ccBreakdown,
+      costCenterBreakdown: ccBreakdown,
+      unallocatedLines: allocationData.withoutCC.map(l => ({
+        number: l.lineNumber || l.number,
+        line_number: l.lineNumber || l.number,
+        amount: l.amount || 0,
+      })),
       rulesApplied: rules.map(r => ({ id: r.id, name: r.name, type: r.rule_type })),
     };
 

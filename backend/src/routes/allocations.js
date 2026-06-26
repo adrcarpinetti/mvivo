@@ -60,10 +60,11 @@ router.get('/', authenticate, async (req, res) => {
 // POST /api/allocations/process - Processa rateio (simulate ou definitivo)
 router.post('/process', authenticate, requirePermission('allocate'), async (req, res) => {
   try {
-    const { vivoAccountId, simulate = false } = req.body;
-    if (!vivoAccountId) return res.status(400).json({ error: 'vivoAccountId obrigatório' });
+    const { vivoAccountId, accountId, simulate = false } = req.body;
+    const accId = vivoAccountId || accountId;
+    if (!accId) return res.status(400).json({ error: 'vivoAccountId obrigatório' });
 
-    const result = await processAllocation(vivoAccountId, {
+    const result = await processAllocation(accId, {
       simulate,
       userId: req.user.id,
     });
