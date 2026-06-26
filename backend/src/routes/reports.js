@@ -75,21 +75,51 @@ router.get('/dashboard', authenticate, async (req, res) => {
     `);
 
     // KPIs do mês atual
-    const kpiWhere = month
-      ? `WHERE EXTRACT(YEAR FROM reference_month) = ${year} AND TO_CHAR(reference_month, 'MM') = '${month.padStart(2,'0')}'`
-      : `WHERE EXTRACT(YEAR FROM reference_month) = ${year}`;
+    const kpiYear  = parseInt(year);
+    const kpiMonth = month ? month.padStart(2,'0') : null;
 
-    const lastMonthRes = await query(`
+    // KPIs: soma de faturas (todas as contas Vivo do período)
+    const invoiceRes = await query(`
       SELECT
-        SUM(total_invoice_amount)   AS total_invoice,
-        SUM(total_allocated_amount) AS total_allocated,
-        SUM(total_lines)            AS total_lines,
-        SUM(lines_with_cc)          AS lines_with_cc,
-        SUM(lines_without_cc)       AS lines_without_cc,
-        SUM(lines_in_vivo_not_goc)  AS unmatched
-      FROM monthly_allocations
-      ${kpiWhere}
-    `);
+        SUM(va.total_amount)                       AS total_invoice,
+        COALESCE(SUM(ma.total_allocated_amount), 0) AS total_allocated,
+        COALESCE(SUM(ma.lines_without_cc), 0)      AS lines_without_cc
+      FROM vivo_accounts va
+      LEFT JOIN monthly_allocations ma ON ma.vivo_account_id = va.id
+      WHERE EXTRACT(YEAR FROM va.reference_month) = $1
+        ${kpiMonth ? "AND TO_CHAR(va.reference_month, 'MM') = $2" : ''}
+    `, kpiMonth ? [kpiYear, kpiMonth] : [kpiYear]);
+
+    // Linhas únicas (phone_lines distintas que aparecem no período)
+    const linesRes = await query(`
+      SELECT
+        COUNT(DISTINCT vii.line_number)                                       AS total_lines,
+        COUNT(DISTINCT CASE WHEN gi.phone_number IS NOT NULL
+              THEN vii.line_number END)                                        AS lines_with_cc,
+        COUNT(DISTINCT CASE WHEN gi.phone_number IS NULL
+              THEN vii.line_number END)                                        AS lines_without_cc
+      FROM vivo_invoice_items vii
+      JOIN vivo_accounts va ON va.id = vii.vivo_account_id
+      LEFT JOIN LATERAL (
+        SELECT gii.phone_number
+        FROM goc_import_items gii
+        JOIN goc_imports g ON g.id = gii.goc_import_id
+        WHERE gii.phone_number = vii.line_number
+          AND gii.cost_center_code IS NOT NULL
+        LIMIT 1
+      ) gi ON TRUE
+      WHERE vii.item_category = 'monthly_total'
+        AND EXTRACT(YEAR FROM va.reference_month) = $1
+        ${kpiMonth ? "AND TO_CHAR(va.reference_month, 'MM') = $2" : ''}
+    `, kpiMonth ? [kpiYear, kpiMonth] : [kpiYear]);
+
+    const lastMonthRes = { rows: [{
+      total_invoice:    invoiceRes.rows[0]?.total_invoice    || 0,
+      total_allocated:  invoiceRes.rows[0]?.total_allocated  || 0,
+      total_lines:      linesRes.rows[0]?.total_lines        || 0,
+      lines_with_cc:    linesRes.rows[0]?.lines_with_cc      || 0,
+      lines_without_cc: linesRes.rows[0]?.lines_without_cc   || 0,
+    }] };
 
     res.json({
       monthlyEvolution: monthlyTotals.rows,
